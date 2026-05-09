@@ -83,8 +83,10 @@ const Movies = () => {
       if (isEra) {
         if (pageType === 'animation') {
           data = await tmdbService.getAnimationByReleaseYears(startYear, endYear, pageNum);
-        } else {
+        } else if (pageType === 'bollywood' || lang === 'hi') {
           data = await tmdbService.getBollywoodByReleaseYears(startYear, endYear, pageNum);
+        } else {
+          data = await tmdbService.getDecadeMovies(startYear, endYear, 'en', pageNum);
         }
       } else if (personId) {
         if (pageNum === 1) {

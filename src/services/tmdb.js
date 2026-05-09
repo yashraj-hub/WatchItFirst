@@ -18,7 +18,7 @@ const CACHE_ENTRY_SOFT_LIMIT = 200 * 1024;
 const NON_PERSISTED_KEYS = new Set([
   'bollywood_sync_data',
   'animation_sync_data',
-  'master_sync_data',
+  'master_sync_data_v3',
 ]);
 
 const memoryCache = {
@@ -746,7 +746,8 @@ export const tmdbService = {
     fetchFromTMDB(`/movie/${id}/images`, { include_image_language: 'en,null' }),
 
   getFullSyncData: async (genreIds) => {
-    return runSingletonSyncWithFirestore('master_sync_data', async () => {
+    return runSingletonSyncWithFirestore('master_sync_data_v3', async () => {
+      const currentYear = new Date().getFullYear();
       const globalStudios = [
         { id: 174, name: 'Warner Bros.' },
         { id: 429, name: 'DC Studios' },
@@ -755,6 +756,15 @@ export const tmdbService = {
         { id: 25, name: '20th Century Studios' },
         { id: 5, name: 'Columbia Pictures' },
         { id: 420, name: 'Marvel Studios' },
+      ];
+
+      const eraSections = [
+        { id: 'hollywood-2020s', name: '2020s Hollywood', startYear: 2020, endYear: currentYear, isEra: true },
+        { id: 'hollywood-2010s', name: '2010s Hollywood', startYear: 2010, endYear: 2019, isEra: true },
+        { id: 'hollywood-2000s', name: '2000s Hollywood', startYear: 2000, endYear: 2009, isEra: true },
+        { id: 'hollywood-90s', name: '90s Hollywood', startYear: 1990, endYear: 1999, isEra: true },
+        { id: 'hollywood-80s', name: '80s Hollywood', startYear: 1980, endYear: 1989, isEra: true },
+        { id: 'hollywood-classics', name: 'Classic Hollywood', startYear: 1950, endYear: 1979, isEra: true },
       ];
 
       const [trending, topRated, nowPlaying, genresResponse] = await Promise.all([
@@ -784,8 +794,42 @@ export const tmdbService = {
         return { id, name: genreName, movies: allMovies, total: pagesData[0].total_results };
       });
 
-      const [studioSectionsRaw, genreSections] = await Promise.all([
+      const eraPromises = eraSections.map(async (era) => {
+        try {
+          const [page1, page2] = await Promise.all([
+            fetchFromTMDB('/discover/movie', {
+              sort_by: 'popularity.desc',
+              with_original_language: 'en',
+              'primary_release_date.gte': `${era.startYear}-01-01`,
+              'primary_release_date.lte': `${era.endYear}-12-31`,
+              'vote_count.gte': 100,
+            }),
+            fetchFromTMDB('/discover/movie', {
+              sort_by: 'popularity.desc',
+              with_original_language: 'en',
+              'primary_release_date.gte': `${era.startYear}-01-01`,
+              'primary_release_date.lte': `${era.endYear}-12-31`,
+              'vote_count.gte': 100,
+              page: 2,
+            }),
+          ]);
+          return {
+            id: era.id,
+            name: era.name,
+            movies: [...page1.results, ...page2.results],
+            total: page1.total_results,
+            isEra: true,
+            startYear: era.startYear,
+            endYear: era.endYear,
+          };
+        } catch {
+          return null;
+        }
+      });
+
+      const [studioSectionsRaw, eraSectionsRaw, genreSections] = await Promise.all([
         Promise.all(studioPromises),
+        Promise.all(eraPromises),
         Promise.all(genreMoviesPromises),
       ]);
 
@@ -793,7 +837,11 @@ export const tmdbService = {
         trending: trending.results,
         topRated: topRated.results,
         nowPlaying: nowPlaying.results,
-        genreSections: [...studioSectionsRaw.filter(Boolean), ...genreSections],
+        genreSections: [
+          ...studioSectionsRaw.filter(Boolean),
+          ...eraSectionsRaw.filter(Boolean),
+          ...genreSections,
+        ],
       };
     });
   },

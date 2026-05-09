@@ -65,6 +65,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
       params.set('isEra', 'true');
       if (genre.startYear) params.set('startYear', String(genre.startYear));
       if (genre.endYear) params.set('endYear', String(genre.endYear));
+      params.set('pageType', selectedZone === 'bollywood' ? 'bollywood' : selectedZone === 'animation' ? 'animation' : 'default');
     }
     if (genre.isDirector) params.set('isDirector', 'true');
     if (selectedZone === 'bollywood') { params.set('lang', 'hi'); params.set('pageType', 'bollywood'); }
@@ -208,7 +209,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute right-0 top-[calc(100%+12px)] z-50 w-[340px] rounded-2xl border border-white/10 bg-black/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden" 
+                  className="absolute right-0 top-[calc(100%+12px)] z-50 w-[340px] rounded-2xl border border-white/10 bg-black/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl max-h-[70vh] overflow-y-auto" 
                   role="menu"
                 >
                   <div className="mb-5 flex items-center justify-between">

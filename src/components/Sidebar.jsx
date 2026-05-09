@@ -54,6 +54,7 @@ const Sidebar = () => {
       params.set('isEra', 'true');
       if (genre.startYear) params.set('startYear', String(genre.startYear));
       if (genre.endYear) params.set('endYear', String(genre.endYear));
+      params.set('pageType', selectedZone === 'bollywood' ? 'bollywood' : selectedZone === 'animation' ? 'animation' : 'default');
     }
     if (genre.isDirector) params.set('isDirector', 'true');
     if (selectedZone === 'bollywood') { params.set('lang', 'hi'); params.set('pageType', 'bollywood'); }
