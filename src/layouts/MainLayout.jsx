@@ -243,28 +243,44 @@ const Navbar = ({ onDiscoveryTrigger }) => {
             </motion.div>
 
             <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.2 }}
+              whileTap={{ scale: 0.85 }}
               onClick={onDiscoveryTrigger}
-              className="relative flex items-center justify-center w-9 h-9 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-400/60 transition-all duration-300 group overflow-visible"
+              className="relative flex items-center justify-center w-9 h-9 rounded-full bg-yellow-500/10 border border-yellow-500/40 text-yellow-400 transition-all duration-300 overflow-visible"
               title="Surprise Me!"
             >
-              {/* Pulse ring */}
+              {/* Outer slow pulse */}
               <motion.span
-                className="absolute inset-0 rounded-full border border-yellow-400/40"
-                animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute inset-0 rounded-full bg-yellow-400/10"
+                animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               />
+              {/* Middle pulse */}
               <motion.span
-                className="absolute inset-0 rounded-full border border-yellow-400/20"
-                animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+                className="absolute inset-0 rounded-full bg-yellow-400/15"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0, 0.8] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
               />
+              {/* Border ring */}
+              <motion.span
+                className="absolute inset-0 rounded-full border-2 border-yellow-400/60"
+                animate={{ scale: [1, 1.5, 1], opacity: [1, 0, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}
+              />
+              {/* Zap icon — strike animation */}
               <motion.div
-                animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2.5 }}
+                animate={{
+                  rotate: [0, -15, 15, -8, 8, 0],
+                  scale: [1, 1.3, 0.9, 1.2, 1],
+                }}
+                transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
               >
-                <Zap className="w-4 h-4 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]" />
+                <Zap
+                  className="w-4 h-4 fill-yellow-400 text-yellow-400"
+                  style={{
+                    filter: 'drop-shadow(0 0 8px rgba(250,204,21,1)) drop-shadow(0 0 16px rgba(250,204,21,0.6))',
+                  }}
+                />
               </motion.div>
             </motion.button>
           </div>
@@ -470,51 +486,12 @@ const MainLayout = ({ children }) => {
     }
   };
 
-  const handleDiscoveryFinish = () => {
+  const handleDiscoveryFinish = (movie) => {
     setShowDiscovery(false);
     setDiscoveryLogos([]);
-    
-    // Determine which zones are actually available in the cache
-    const availableZones = ['default'];
-    if (bollywoodCache?.length > 0) availableZones.push('bollywood');
-    if (animationCache?.length > 0) availableZones.push('animation');
-    
-    // Pick a random zone from what we have
-    const randomZone = availableZones[Math.floor(Math.random() * availableZones.length)];
-    
-    let targetGenres = [];
-    if (randomZone === 'bollywood') targetGenres = bollywoodCache;
-    else if (randomZone === 'animation') targetGenres = animationCache;
-    else targetGenres = genreSections.filter(s => !s.isStudio);
-
-    if (targetGenres?.length > 0) {
-      const randomGenre = targetGenres[Math.floor(Math.random() * targetGenres.length)];
-      
-      // Construct the search params exactly like handleGenreClick
-      const params = new URLSearchParams({ 
-        genreId: String(randomGenre.id), 
-        genreName: randomGenre.name 
-      });
-      
-      if (randomGenre.isStudio) params.set('isStudio', 'true');
-      if (randomGenre.isEra) {
-        params.set('isEra', 'true');
-        if (randomGenre.startYear) params.set('startYear', String(randomGenre.startYear));
-        if (randomGenre.endYear) params.set('endYear', String(randomGenre.endYear));
-      }
-      if (randomGenre.isDirector) params.set('isDirector', 'true');
-      
-      if (randomZone === 'bollywood') { 
-        params.set('lang', 'hi'); 
-        params.set('pageType', 'bollywood'); 
-      } else if (randomZone === 'animation') { 
-        params.set('pageType', 'animation'); 
-      }
-      
-      // Navigate to the movie list page
-      navigate(`/movies?${params.toString()}`);
+    if (movie?.id) {
+      navigate(`/details/${movie.id}`);
     } else {
-      // Fallback if no genres found
       navigate('/');
     }
   };

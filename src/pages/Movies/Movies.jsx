@@ -10,6 +10,8 @@ import { useSEO } from '../../hooks/useSEO';
 const DC_LOGO_SRC = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/DC_Studios_logo.svg/1280px-DC_Studios_logo.svg.png';
 const MARVEL_LOGO_SRC = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/500px-Marvel_Logo.svg.png';
 const ANIMATION_STUDIO_IDS = new Set([3, 6125, 33, 521, 6704, 9993]);
+// Studios whose TMDB logos are dark and need invert on dark bg
+const INVERT_LOGO_IDS = new Set([3, 6125, 521, 6704]); // Pixar=3, Disney=6125, DreamWorks=521, Illumination=6704
 
 const Movies = () => {
   const [searchParams] = useSearchParams();
@@ -295,6 +297,7 @@ const Movies = () => {
                   } 
                   alt={pageTitle}
                   className="h-28 md:h-40 lg:h-52 w-auto object-contain"
+                  style={INVERT_LOGO_IDS.has(Number(genreId)) ? { filter: 'invert(1)' } : {}}
                 />
               </div>
             ) : isDirector ? (

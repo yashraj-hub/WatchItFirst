@@ -167,7 +167,7 @@ const MovieDetails = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black" />
 
         <div className="relative z-10 flex flex-col items-center justify-center h-full">
-          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="mt-12">
             {logoPath ? (
               <img src={`${TMDB_CONFIG.original}${logoPath}`} alt={movie?.title} className="max-h-24 md:max-h-36 mx-auto object-contain drop-shadow-2xl" />
             ) : (
@@ -181,7 +181,7 @@ const MovieDetails = () => {
 
       <div className="relative z-10 bg-black px-4 md:px-16 lg:px-24 py-14 space-y-14">
 
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-8">
           <div className="flex items-center gap-4 mb-4">
             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white">{movie?.title}</h1>
             <button onClick={handlePlay} className="flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl">

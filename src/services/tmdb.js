@@ -312,7 +312,28 @@ export const tmdbService = {
 
     const items = searchData.results.filter(
       item => item.poster_path && (item.media_type === 'movie' || item.media_type === 'tv')
+        && item.popularity > 2
     );
+
+    // Extract person results separately
+    const persons = searchData.results
+      .filter(item => item.media_type === 'person' && item.profile_path)
+      .slice(0, 6);
+
+    // Batch fetch external IDs to filter only playable (has imdb_id) items
+    const externalIdResults = await Promise.all(
+      items.map(item =>
+        fetchFromTMDB(`/${item.media_type === 'tv' ? 'tv' : 'movie'}/${item.id}/external_ids`)
+          .catch(() => null)
+      )
+    );
+
+    const playableItems = items.filter((item, i) => !!externalIdResults[i]?.imdb_id);
+    // Attach imdb_id to each item for later use
+    playableItems.forEach((item, i) => {
+      const idx = items.indexOf(item);
+      item.imdb_id = externalIdResults[idx]?.imdb_id;
+    });
 
     // Fetch full collection details for each matched TMDB collection
     const collectionDetails = await Promise.all(
@@ -322,7 +343,7 @@ export const tmdbService = {
     );
 
     // For movie results that belong to a collection, fetch their collection id
-    const movieIds = items
+    const movieIds = playableItems
       .filter(i => i.media_type === 'movie' && !collectionDetails.some(
         c => c?.parts?.some(p => p.id === i.id)
       ))
@@ -388,11 +409,12 @@ export const tmdbService = {
       Object.values(collectionMap).flatMap(c => (c.parts || []).map(p => p.id))
     );
 
-    // Standalone = items not covered by any real collection
-    const standalone = items.filter(i => !groupedIds.has(i.id));
+    // Standalone = playable items not covered by any real collection
+    const standalone = playableItems.filter(i => !groupedIds.has(i.id));
 
     return {
-      items,
+      items: playableItems,
+      persons,
       collections: Object.values(collectionMap),
       standalone,
     };

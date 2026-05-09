@@ -9,17 +9,24 @@ const Watch = () => {
   const { imdbId } = useParams();
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
+  const [logoPath, setLogoPath] = useState(null);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const { user } = useAuth();
 
   useEffect(() => {
     tmdbService.findByImdbId(imdbId)
-      .then(data => {
+      .then(async data => {
         const result = data?.movie_results?.[0] || data?.tv_results?.[0];
         const mediaType = data?.movie_results?.[0] ? 'movie' : 'tv';
         if (result) {
           setTitle(result.title || result.name);
+          // Fetch logo
+          try {
+            const images = await tmdbService.getMovieImages(result.id);
+            const logo = images?.logos?.find(l => l.iso_639_1 === 'en') || images?.logos?.[0];
+            if (logo) setLogoPath(logo.file_path);
+          } catch {}
           if (user) {
             saveContinueWatching(user.uid, {
               id: result.id,
@@ -87,9 +94,16 @@ const Watch = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-400 group-hover:text-white group-hover:-translate-x-1 transition-all" />
           </button>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-300 mb-0.5">Now Playing</span>
-            <h1 className="text-sm font-semibold uppercase opacity-80">{title || 'Loading...'}</h1>
+          <div className="flex flex-col justify-center">
+            {logoPath ? (
+              <img
+                src={`https://image.tmdb.org/t/p/original${logoPath}`}
+                alt={title}
+                className="h-7 md:h-9 w-auto object-contain object-left drop-shadow-lg"
+              />
+            ) : (
+              <h1 className="text-sm font-semibold uppercase opacity-80">{title || 'Loading...'}</h1>
+            )}
           </div>
         </div>
 

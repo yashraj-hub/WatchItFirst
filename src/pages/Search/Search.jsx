@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tmdbService, TMDB_CONFIG } from '../../services/tmdb';
 import MainLayout from '../../layouts/MainLayout';
-import { Search as SearchIcon, X, Star, Layers } from 'lucide-react';
+import { Search as SearchIcon, X, Star, Layers, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSEO } from '../../hooks/useSEO';
 
@@ -196,16 +196,15 @@ const Search = () => {
   };
 
   // Apply filter + fallback prefix grouping on standalone
-  const { collections, standalone } = (() => {
-    if (!searchResult) return { collections: [], standalone: [] };
+  const { collections, standalone, persons } = (() => {
+    if (!searchResult) return { collections: [], standalone: [], persons: [] };
 
     const filteredStandalone = searchResult.standalone;
     const filteredCollections = searchResult.collections;
-
-    // Apply prefix grouping on remaining standalone items
     const { grouped: prefixGroups, standalone: finalStandalone } = groupByTitlePrefix(filteredStandalone);
 
     return {
+      persons: searchResult.persons || [],
       collections: [...filteredCollections, ...prefixGroups],
       standalone: finalStandalone.sort((a, b) =>
         (b.release_date || b.first_air_date || '').localeCompare(a.release_date || a.first_air_date || '')
@@ -213,8 +212,7 @@ const Search = () => {
     };
   })();
 
-  const totalFound = searchResult?.items?.length ?? 0;
-  const hasResults = collections.length > 0 || standalone.length > 0;
+  const hasResults = collections.length > 0 || standalone.length > 0 || persons.length > 0;
 
   return (
     <MainLayout>
@@ -287,6 +285,43 @@ const Search = () => {
             {!loading && hasResults && (
               <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-10">
 
+                {/* Cast / Person Results */}
+                {persons.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white/5 border border-white/10 rounded-xl">
+                        <Users className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <h2 className="text-base font-black uppercase tracking-tighter text-white">Cast & Crew</h2>
+                    </div>
+                    <div className="flex gap-5 overflow-x-auto pb-2 scrollbar-hide">
+                      {persons.map((person, i) => (
+                        <motion.div
+                          key={person.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1, transition: { delay: i * 0.05 } }}
+                          onClick={() => navigate(`/movies?personId=${person.id}&personName=${encodeURIComponent(person.name)}`)}
+                          className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group w-20"
+                        >
+                          <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-red-500 transition-all">
+                            <img
+                              src={`${TMDB_CONFIG.w500}${person.profile_path}`}
+                              alt={person.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-tight text-gray-400 group-hover:text-white transition-colors text-center line-clamp-2">
+                            {person.name}
+                          </p>
+                          <p className="text-[8px] text-gray-600 uppercase tracking-widest">
+                            {person.known_for_department}
+                          </p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Collections / Franchise Groups */}
                 {collections.map((group) => (
                   <CollectionGroup key={group.id} group={group} navigate={navigate} />
@@ -335,7 +370,7 @@ const Search = () => {
                   <SearchIcon className="w-10 h-10 text-red-600 animate-pulse" />
                 </div>
                 <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-3">Ready to explore?</h3>
-                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Type a title, franchise, or series above</p>
+                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Type a title, cast name, franchise or series above</p>
               </motion.div>
             )}
 
