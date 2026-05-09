@@ -12,7 +12,9 @@ const Watch = () => {
     tmdbService.findByImdbId(imdbId)
       .then(data => {
         const result = data?.movie_results?.[0] || data?.tv_results?.[0];
-        if (result) setTitle(result.title || result.name);
+        if (result) {
+          setTitle(result.title || result.name);
+        }
       })
       .catch(() => {});
   }, [imdbId]);
@@ -31,8 +33,8 @@ const Watch = () => {
             <ArrowLeft className="w-6 h-6 text-gray-400 group-hover:text-white group-hover:-translate-x-1 transition-all" />
           </button>
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-red-600 mb-0.5">Now Playing</span>
-            <h1 className="text-sm font-bold tracking-widest uppercase opacity-80">{title || 'Loading...'}</h1>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-300 mb-0.5">Now Playing</span>
+            <h1 className="text-sm font-semibold uppercase opacity-80">{title || 'Loading...'}</h1>
           </div>
         </div>
         

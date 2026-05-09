@@ -40,6 +40,7 @@ const MovieDetails = () => {
     }
   };
 
+
   if (loading) return (
     <div className="h-screen bg-black flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
@@ -126,6 +127,7 @@ const MovieDetails = () => {
               {movie?.title}
             </h1>
             <button
+              type="button"
               onClick={handlePlay}
               className="flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl"
             >
@@ -196,7 +198,12 @@ const MovieDetails = () => {
           </h2>
           <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide">
             {topCast?.map(person => (
-              <div key={person.id} className="flex-shrink-0 w-24 group text-center">
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => navigate(`/movies?personId=${person.id}&personName=${encodeURIComponent(person.name)}`)}
+                className="flex-shrink-0 w-24 group text-center text-left focus:outline-none"
+              >
                 <div className="aspect-square rounded-full overflow-hidden mb-2 ring-2 ring-white/5 group-hover:ring-red-600 transition-all grayscale group-hover:grayscale-0">
                   <img
                     src={person.profile_path ? `${TMDB_CONFIG.w500}${person.profile_path}` : 'https://via.placeholder.com/300x300?text=?'}
@@ -206,7 +213,7 @@ const MovieDetails = () => {
                 </div>
                 <p className="text-xs font-black text-white line-clamp-1">{person.name}</p>
                 <p className="text-[9px] font-bold text-gray-500 line-clamp-1 uppercase tracking-tighter mt-0.5">{person.character}</p>
-              </div>
+              </button>
             ))}
           </div>
         </motion.div>

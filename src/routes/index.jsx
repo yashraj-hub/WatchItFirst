@@ -58,7 +58,6 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
-    path: '/trending',
     element: <Home />, // Placeholder
     errorElement: <ErrorPage />,
   },

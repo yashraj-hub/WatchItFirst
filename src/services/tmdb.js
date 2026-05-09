@@ -234,6 +234,109 @@ export const tmdbService = {
   search: (query, type = 'multi') =>
     fetchFromTMDB(`/search/${type}`, { query }),
 
+  searchCollection: (query) =>
+    fetchFromTMDB('/search/collection', { query }),
+
+  getCollectionDetails: (id) =>
+    fetchFromTMDB(`/collection/${id}`, { append_to_response: 'images', include_image_language: 'en,null' }),
+
+  getMovieCollectionId: (id) =>
+    fetchFromTMDB(`/movie/${id}`, { append_to_response: '' }),
+
+  searchEnriched: async (query) => {
+    const [searchData, collectionData] = await Promise.all([
+      fetchFromTMDB('/search/multi', { query }),
+      fetchFromTMDB('/search/collection', { query }),
+    ]);
+
+    const items = searchData.results.filter(
+      item => item.poster_path && (item.media_type === 'movie' || item.media_type === 'tv')
+    );
+
+    // Fetch full collection details for each matched TMDB collection
+    const collectionDetails = await Promise.all(
+      collectionData.results.slice(0, 5).map(c =>
+        fetchFromTMDB(`/collection/${c.id}`).catch(() => null)
+      )
+    );
+
+    // For movie results that belong to a collection, fetch their collection id
+    const movieIds = items
+      .filter(i => i.media_type === 'movie' && !collectionDetails.some(
+        c => c?.parts?.some(p => p.id === i.id)
+      ))
+      .map(i => i.id);
+
+    const movieDetails = await Promise.all(
+      movieIds.slice(0, 12).map(id =>
+        fetchFromTMDB(`/movie/${id}`).catch(() => null)
+      )
+    );
+
+    // Build a map: collectionId -> { id, name, parts[] }
+    const collectionMap = {};
+
+    // From TMDB collection search
+    collectionDetails.filter(Boolean).forEach(col => {
+      if (col.parts?.length >= 2) {
+        collectionMap[col.id] = {
+          id: col.id,
+          name: col.name,
+          poster_path: col.poster_path,
+          parts: col.parts
+            .filter(p => p.poster_path)
+            .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || '')),
+          source: 'tmdb_collection',
+        };
+      }
+    });
+
+    // From belongs_to_collection on individual movie results
+    movieDetails.filter(Boolean).forEach(movie => {
+      const col = movie.belongs_to_collection;
+      if (!col || collectionMap[col.id]) return;
+      collectionMap[col.id] = {
+        id: col.id,
+        name: col.name,
+        poster_path: col.poster_path,
+        parts: null, // will be enriched below
+        source: 'belongs_to',
+        seedMovieId: movie.id,
+      };
+    });
+
+    // Fetch full parts for belongs_to collections we don't have yet
+    await Promise.all(
+      Object.values(collectionMap)
+        .filter(c => c.parts === null)
+        .map(async c => {
+          const full = await fetchFromTMDB(`/collection/${c.id}`).catch(() => null);
+          if (full?.parts?.length >= 2) {
+            c.parts = full.parts
+              .filter(p => p.poster_path)
+              .sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''));
+            c.name = full.name;
+          } else {
+            delete collectionMap[c.id];
+          }
+        })
+    );
+
+    // IDs already in a real collection
+    const groupedIds = new Set(
+      Object.values(collectionMap).flatMap(c => (c.parts || []).map(p => p.id))
+    );
+
+    // Standalone = items not covered by any real collection
+    const standalone = items.filter(i => !groupedIds.has(i.id));
+
+    return {
+      items,
+      collections: Object.values(collectionMap),
+      standalone,
+    };
+  },
+
   getMoviesByGenre: (genreId, page = 1) =>
     fetchFromTMDB('/discover/movie', { with_genres: genreId, page }),
 
@@ -271,6 +374,16 @@ export const tmdbService = {
       page,
       with_original_language: 'hi',
       region: 'IN',
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': `${startYear}-01-01`,
+      'primary_release_date.lte': `${endYear}-12-31`,
+      ...params,
+    }),
+
+  getAnimationByReleaseYears: (startYear, endYear, page = 1, params = {}) =>
+    fetchFromTMDB('/discover/movie', {
+      page,
+      with_genres: 16,
       sort_by: 'popularity.desc',
       'primary_release_date.gte': `${startYear}-01-01`,
       'primary_release_date.lte': `${endYear}-12-31`,
@@ -426,7 +539,15 @@ export const tmdbService = {
           'primary_release_date.lte': era.end.includes('-') ? era.end : `${era.end}-12-31`,
           sort_by: 'popularity.desc',
         });
-        return { id: era.name, name: era.name, movies: data.results, total: data.total_results };
+        return {
+          id: era.name,
+          name: era.name,
+          movies: data.results,
+          total: data.total_results,
+          isEra: true,
+          startYear: era.start,
+          endYear: era.end.includes('-') ? era.end.split('-')[0] : era.end,
+        };
       });
 
       const [studioSectionsRaw, eraSections] = await Promise.all([
@@ -447,6 +568,9 @@ export const tmdbService = {
 
   getExternalIds: (id, type = 'movie') =>
     fetchFromTMDB(`/${type}/${id}/external_ids`),
+
+  getMovieImages: (id) =>
+    fetchFromTMDB(`/movie/${id}/images`, { include_image_language: 'en,null,hi' }),
 
   // ── Recommendation engine methods ─────────────────────────────────────────
 

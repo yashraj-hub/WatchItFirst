@@ -1,33 +1,91 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronDown, Search, Video, Sparkles, Menu, X, Star } from 'lucide-react';
+import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock } from 'lucide-react';
 import { fetchCategories, fetchPageGenres, selectPageGenres } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
+import DiscoveryAnimation from '../components/DiscoveryAnimation';
+import { tmdbService } from '../services/tmdb';
 
-const Navbar = () => {
+const Navbar = ({ onDiscoveryTrigger }) => {
   const [scrolled, setScrolled] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileCatsOpen, setMobileCatsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef(null);
+  const profileRef = useRef(null);
   const genreSections = useSelector((state) => state.categories.genreSections);
   const status = useSelector((state) => state.categories.status);
+  const bollywoodGenres = useSelector(selectPageGenres('bollywood'));
+  const animationGenres = useSelector(selectPageGenres('animation'));
+  const bollywoodGenresLoading = useSelector((state) => state.pageGenres.loading.bollywood);
+  const animationGenresLoading = useSelector((state) => state.pageGenres.loading.animation);
 
-  const isBollywoodPage = location.pathname.startsWith('/bollywood');
-  const isAnimationPage = location.pathname.startsWith('/animation');
+  const queryParams = new URLSearchParams(location.search);
+  const pageTypeParam = queryParams.get('pageType');
 
-  // Determine which pageType key to fetch
+  const isBollywoodPage = location.pathname.startsWith('/bollywood') || pageTypeParam === 'bollywood';
+  const isAnimationPage = location.pathname.startsWith('/animation') || pageTypeParam === 'animation';
+
+  const isRecommendationsPage = location.pathname === '/recommendations';
+
   const pageType = isBollywoodPage ? 'bollywood' : isAnimationPage ? 'animation' : 'default';
-  const pageLabel = isBollywoodPage ? 'Bollywood Categories' : isAnimationPage ? 'Animation Categories' : 'Categories';
+  const [selectedZone, setSelectedZone] = useState(pageType);
+  const englishGenres = useMemo(() => genreSections.filter(s => !s.isStudio), [genreSections]);
+  const categories = (selectedZone === 'bollywood' && !isRecommendationsPage) ? bollywoodGenres : (selectedZone === 'animation' && !isRecommendationsPage) ? animationGenres : englishGenres;
 
-  // Read from Redux cache — no re-fetch on route change
-  const cachedPageGenres = useSelector(selectPageGenres(pageType));
-  const defaultGenres = useMemo(() => genreSections.filter(s => !s.isStudio), [genreSections]);
-  const genres = cachedPageGenres ?? defaultGenres;
+  const categoriesLoading =
+    (!isRecommendationsPage && selectedZone === 'bollywood' && bollywoodGenresLoading) ||
+    (!isRecommendationsPage && selectedZone === 'animation' && animationGenresLoading);
+  const pageLabel = isRecommendationsPage 
+    ? 'English Categories'
+    : selectedZone === 'bollywood'
+      ? 'Bollywood Categories'
+      : selectedZone === 'animation'
+        ? 'Animation Categories'
+        : 'English Categories';
+
+  const navLinkClass = 'text-[11px] uppercase tracking-[0.2em] font-semibold text-gray-300 hover:text-white transition-all duration-300';
+  const categoryLinkClass = 'block rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300 transition-all duration-300 hover:border-red-500/50 hover:bg-red-600/10 hover:text-white';
+
+  const handleGenreClick = (genre) => {
+    setShowCategories(false);
+    setMobileOpen(false);
+    const params = new URLSearchParams({ genreId: String(genre.id), genreName: genre.name });
+    if (genre.isStudio) params.set('isStudio', 'true');
+    if (genre.isEra) {
+      params.set('isEra', 'true');
+      if (genre.startYear) params.set('startYear', String(genre.startYear));
+      if (genre.endYear) params.set('endYear', String(genre.endYear));
+    }
+    if (genre.isDirector) params.set('isDirector', 'true');
+    if (selectedZone === 'bollywood') { params.set('lang', 'hi'); params.set('pageType', 'bollywood'); }
+    else if (selectedZone === 'animation') { params.set('pageType', 'animation'); }
+    navigate(`/movies?${params.toString()}`);
+  };
+
+  const categoryPanel = categoriesLoading && !categories?.length ? (
+    <div className="py-8 flex items-center justify-center text-[10px] uppercase tracking-[0.2em] text-gray-500">Loading...</div>
+  ) : categories?.length ? (
+    <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-2">
+      {categories.map((genre) => (
+        <button 
+          key={genre.id} 
+          type="button" 
+          onClick={() => handleGenreClick(genre)} 
+          className="text-left text-[11px] font-medium uppercase tracking-[0.12em] text-gray-400 hover:text-white transition-colors duration-200 py-1"
+        >
+          {genre.name}
+        </button>
+      ))}
+    </div>
+  ) : (
+    <div className="py-8 flex items-center justify-center text-[10px] uppercase tracking-[0.2em] text-gray-500">No categories available.</div>
+  );
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -39,118 +97,206 @@ const Navbar = () => {
     if (status === 'idle') dispatch(fetchCategories());
   }, [status, dispatch]);
 
-  // Fetch page-specific genres into Redux once per pageType — condition in thunk prevents duplicates
   useEffect(() => {
     if (pageType !== 'default') dispatch(fetchPageGenres(pageType));
   }, [pageType, dispatch]);
 
-  // Close mobile menu on route change
   useEffect(() => {
-    setMobileOpen(false);
-    setShowCategories(false);
-  }, [location.pathname]);
+    if (selectedZone !== 'default') dispatch(fetchPageGenres(selectedZone));
+  }, [selectedZone, dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowCategories(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowCategories(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Lock body scroll when mobile menu open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
-  const navLinkClass = 'text-[11px] uppercase tracking-[0.2em] font-semibold text-gray-300 hover:text-white transition-all duration-300';
-  const categoryLinkClass = 'block rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-300 transition-all duration-300 hover:border-red-500/50 hover:bg-red-600/10 hover:text-white';
-
-  const handleGenreClick = (genre) => {
-    setShowCategories(false);
-    setMobileOpen(false);
-    const params = new URLSearchParams({ genreId: String(genre.id), genreName: genre.name });
-    if (isBollywoodPage) { params.set('lang', 'hi'); params.set('pageType', 'bollywood'); }
-    else if (isAnimationPage) { params.set('pageType', 'animation'); }
-    navigate(`/movies?${params.toString()}`);
-  };
-
   return (
     <>
       <nav
-        className={`fixed top-0 w-full z-[100] px-4 md:px-12 py-4 flex items-center justify-between transition-all duration-300 ${
-          scrolled || mobileOpen ? 'bg-black shadow-2xl' : 'bg-gradient-to-b from-black via-black/40 to-transparent'
+        className={`fixed top-0 w-full z-[100] px-4 md:px-12 py-3 flex items-center justify-between transition-all duration-300 ${
+          scrolled || mobileOpen ? 'bg-black shadow-2xl' : 'bg-gradient-to-b from-black/80 via-black/20 to-transparent'
         }`}
       >
         {/* Logo */}
         <div className="flex-shrink-0">
-          <Link to="/" className="text-xl md:text-3xl font-heading tracking-tighter text-white uppercase font-bold hover:text-red-600 transition-colors duration-300">
+          <Link to="/" className="text-xl md:text-2xl font-black tracking-tighter text-white uppercase hover:text-red-600 transition-colors duration-300">
             WatchItFirst
           </Link>
         </div>
 
-        {/* Desktop nav links */}
-        <div className="hidden md:flex items-center justify-center flex-grow gap-8 lg:gap-12">
-          <Link to="/bollywood" className={navLinkClass}>
-            <span className="flex items-center gap-2"><Video className="w-3.5 h-3.5" />Bollywood</span>
-          </Link>
-
-          <Link to="/recommendations" className={navLinkClass}>
-            <span className="flex items-center gap-2"><Star className="w-3.5 h-3.5" />For You</span>
-          </Link>
-
-          <div ref={dropdownRef} className="relative" onMouseEnter={() => setShowCategories(true)} onMouseLeave={() => setShowCategories(false)}>
-            <button type="button" onClick={() => setShowCategories(p => !p)} className={navLinkClass} aria-haspopup="menu" aria-expanded={showCategories}>
-              <span className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                Categories
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showCategories ? 'rotate-180' : ''}`} />
-              </span>
-            </button>
-
-            {showCategories && (
-              <div className="absolute left-1/2 top-[calc(100%+12px)] z-50 w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 rounded-3xl border border-white/10 bg-[#090909]/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl" role="menu">
-                <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-red-500">Browse</p>
-                    <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-white">{pageLabel}</h3>
-                  </div>
-                  <button type="button" onClick={() => { setShowCategories(false); navigate(isBollywoodPage ? '/bollywood' : isAnimationPage ? '/animation' : '/movies'); }} className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400 hover:text-white transition-colors">
-                    View All
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {genres.map((genre) => (
-                    <button key={genre.id} type="button" onClick={() => handleGenreClick(genre)} className={categoryLinkClass} role="menuitem">
-                      {genre.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Desktop nav - Segmented Switcher & Categories */}
+        <div className="hidden md:flex items-center gap-4">
+          {/* Zone Switcher (Segmented Pill) */}
+          <div className="relative flex bg-white/5 border border-white/10 rounded-full p-1 h-10 items-center backdrop-blur-md">
+            {/* Sliding Background - Red Pill covering full text */}
+            <motion.div
+              className="absolute rounded-full h-8 bg-gradient-to-r from-red-600 to-red-700 shadow-[0_0_15px_rgba(220,38,38,0.4)]"
+              initial={false}
+              animate={{
+                x: selectedZone === 'bollywood' ? 0 : selectedZone === 'default' ? 95 : 190,
+                width: 95,
+                opacity: isRecommendationsPage ? 0 : 1,
+                scale: isRecommendationsPage ? 0.8 : 1
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+            
+            {[
+              { id: 'bollywood', label: 'Bollywood', path: '/bollywood' },
+              { id: 'default', label: 'Hollywood', path: '/' },
+              { id: 'animation', label: 'Animation', path: '/animation' },
+            ].map((zone) => (
+              <motion.button
+                key={zone.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setSelectedZone(zone.id);
+                  navigate(zone.path);
+                }}
+                className={`relative z-10 px-0 text-[10px] font-black uppercase tracking-wider transition-colors duration-500 w-[95px] ${
+                  (selectedZone === zone.id && !isRecommendationsPage) ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {zone.label}
+              </motion.button>
+            ))}
           </div>
 
-          <Link to="/animation" className={navLinkClass}>
-            <span className="flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" />Animation</span>
-          </Link>
+          {/* Categories Dropdown */}
+          <div ref={dropdownRef} className="relative" onMouseEnter={() => setShowCategories(true)} onMouseLeave={() => setShowCategories(false)}>
+            <motion.button
+              type="button"
+              whileHover={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+              onClick={() => setShowCategories(p => !p)}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-tight text-gray-400 hover:text-white transition-all duration-300 h-9 backdrop-blur-sm"
+              aria-haspopup="menu"
+              aria-expanded={showCategories}
+            >
+              <Sparkles className={`w-3 h-3 transition-transform duration-500 ${showCategories ? 'rotate-180 text-red-500' : ''}`} />
+              Categories
+              <ChevronDown className={`w-3 h-3 transition-transform duration-500 ${showCategories ? 'rotate-180' : ''}`} />
+            </motion.button>
+
+            <AnimatePresence>
+              {showCategories && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute right-0 top-[calc(100%+12px)] z-50 w-[340px] rounded-2xl border border-white/10 bg-black/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden" 
+                  role="menu"
+                >
+                  <div className="mb-5 flex items-center justify-between">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">{pageLabel}</h3>
+                    <motion.button 
+                      whileHover={{ x: 3, color: '#fff' }}
+                      type="button" 
+                      onClick={() => { setShowCategories(false); navigate(selectedZone === 'bollywood' ? '/bollywood' : selectedZone === 'animation' ? '/animation' : '/movies'); }} 
+                      className="text-[9px] font-bold uppercase tracking-widest text-gray-600 transition-colors"
+                    >
+                      View All →
+                    </motion.button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-x-10 gap-y-3">
+                    {categories?.map((genre) => (
+                      <motion.button 
+                        key={genre.id} 
+                        whileHover={{ x: 5, color: '#fff' }}
+                        type="button" 
+                        onClick={() => handleGenreClick(genre)} 
+                        className="text-left text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500 transition-all duration-200 py-1"
+                      >
+                        {genre.name}
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Link 
+                to="/recommendations" 
+                className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-300 ${
+                  location.pathname === '/recommendations' 
+                    ? 'bg-red-600 border-red-500 text-white shadow-[0_0_12px_rgba(220,38,38,0.4)]' 
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+                title="Recommendations"
+              >
+                <Compass className="w-4 h-4" />
+              </Link>
+            </motion.div>
+
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.88 }}
+              onClick={onDiscoveryTrigger}
+              className="relative flex items-center justify-center w-9 h-9 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 hover:border-yellow-400/60 transition-all duration-300 group overflow-visible"
+              title="Surprise Me!"
+            >
+              {/* Pulse ring */}
+              <motion.span
+                className="absolute inset-0 rounded-full border border-yellow-400/40"
+                animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.span
+                className="absolute inset-0 rounded-full border border-yellow-400/20"
+                animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+              />
+              <motion.div
+                animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2.5 }}
+              >
+                <Zap className="w-4 h-4 fill-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]" />
+              </motion.div>
+            </motion.button>
+          </div>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
-          <Link to="/search" className="text-gray-300 hover:text-white hover:scale-110 transition-all duration-300">
+        <div className="flex items-center gap-4">
+          <Link to="/search" className="text-gray-300 hover:text-white transition-all duration-300">
             <Search className="w-5 h-5" />
           </Link>
 
-          <div className="hidden md:flex w-9 h-9 rounded-lg bg-gradient-to-br from-red-600 to-red-700 items-center justify-center cursor-pointer shadow-lg shadow-red-600/30 hover:scale-105 transition-all border border-red-500/50 group">
-            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+          <div ref={profileRef} className="hidden md:flex relative w-8 h-8 rounded-full bg-white/10 border border-white/10 items-center justify-center cursor-pointer hover:bg-white/20 transition-all"
+            onClick={() => setProfileOpen(p => !p)}
+          >
+            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
+            <AnimatePresence>
+              {profileOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-[calc(100%+10px)] w-44 bg-black/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-50"
+                >
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Hamburger — mobile/tablet only */}
+          {/* Hamburger — mobile only */}
           <button
             className="md:hidden p-1.5 text-gray-300 hover:text-white transition-colors"
             onClick={() => setMobileOpen(p => !p)}
@@ -190,23 +336,38 @@ const Navbar = () => {
               </div>
 
               <nav className="flex flex-col px-5 py-6 gap-1">
-                <Link to="/" className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5">
-                  Home
-                </Link>
-                <Link to="/bollywood" className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
-                  <Video className="w-4 h-4" /> Bollywood
-                </Link>
-                <Link to="/recommendations" className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
+                <div className="py-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Switch Zone</p>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { key: 'bollywood', label: 'Bollywood' },
+                      { key: 'default', label: 'Hollywood' },
+                      { key: 'animation', label: 'Animation' },
+                    ].map((zone) => (
+                      <button
+                        key={zone.key}
+                        onClick={() => {
+                          setSelectedZone(zone.key);
+                          navigate(zone.key === 'default' ? '/' : `/${zone.key}`);
+                          setMobileOpen(false);
+                        }}
+                        className={`text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition ${
+                          selectedZone === zone.key ? 'bg-white text-black' : 'bg-white/5 text-gray-400'
+                        }`}
+                      >
+                        {zone.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Link to="/recommendations" onClick={() => setMobileOpen(false)} className="py-4 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
                   <Star className="w-4 h-4" /> For You
                 </Link>
-                <Link to="/animation" className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Animation
-                </Link>
 
-                {/* Categories accordion */}
                 <button
                   onClick={() => setMobileCatsOpen(p => !p)}
-                  className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center justify-between w-full"
+                  className="py-4 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center justify-between w-full"
                 >
                   <span className="flex items-center gap-2"><Sparkles className="w-4 h-4" />Categories</span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${mobileCatsOpen ? 'rotate-180' : ''}`} />
@@ -218,23 +379,22 @@ const Navbar = () => {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                      <div className="grid grid-cols-2 gap-2 py-3">
-                        {genres.map((genre) => (
-                          <button key={genre.id} onClick={() => handleGenreClick(genre)} className="text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-white hover:bg-red-600/10 hover:border-red-500/40 transition-all">
-                            {genre.name}
-                          </button>
-                        ))}
-                      </div>
+                      {categoriesLoading ? (
+                        <div className="py-4 text-[10px] uppercase tracking-[0.2em] text-gray-500">Loading...</div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 py-4">
+                          {categories?.map((genre) => (
+                            <button key={genre.id} onClick={() => handleGenreClick(genre)} className="text-left px-3 py-2 rounded-lg bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                              {genre.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
-
-                <Link to="/search" className="py-3 text-sm font-bold uppercase tracking-widest text-gray-300 hover:text-white flex items-center gap-2">
-                  <Search className="w-4 h-4" /> Search
-                </Link>
               </nav>
             </motion.div>
           </>
@@ -245,22 +405,139 @@ const Navbar = () => {
 };
 
 const MainLayout = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [discoveryLogos, setDiscoveryLogos] = useState([]);
+  
+  // Get all movies from categories state for the roulette
+  const genreSections = useSelector((state) => state.categories.genreSections);
+  const bollywoodCache = useSelector(selectPageGenres('bollywood'));
+  const animationCache = useSelector(selectPageGenres('animation'));
+
+  const allMovies = useMemo(() => {
+    const movieMap = new Map();
+    const addMovies = (list) => {
+      list?.forEach(section => {
+        section.movies?.forEach(m => movieMap.set(m.id, m));
+      });
+    };
+    addMovies(genreSections);
+    addMovies(bollywoodCache);
+    addMovies(animationCache);
+    return Array.from(movieMap.values());
+  }, [genreSections, bollywoodCache, animationCache]);
+
+  const handleDiscoveryTrigger = async () => {
+    if (allMovies.length === 0) return;
+    
+    // Pick 20 random movies to fetch logos for
+    const shuffled = [...allMovies].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 20);
+    
+    // Fetch logos in parallel
+    const logoPromises = selected.map(async (movie) => {
+      try {
+        const images = await tmdbService.getMovieImages(movie.id);
+        const logo = images.logos?.find(l => l.iso_639_1 === 'en' || l.iso_639_1 === null);
+        return logo ? { ...movie, logo_url: `https://image.tmdb.org/t/p/original${logo.file_path}` } : null;
+      } catch {
+        return null;
+      }
+    });
+    
+    const results = await Promise.all(logoPromises);
+    const validLogos = results.filter(Boolean);
+    
+    if (validLogos.length > 0) {
+      setDiscoveryLogos(validLogos);
+      setShowDiscovery(true);
+    } else {
+      // Fallback if no logos found (just start animation with text or posters if needed, 
+      // but user wants logos so we should try to find some)
+      setShowDiscovery(true);
+    }
+  };
+
+  const handleDiscoveryFinish = () => {
+    setShowDiscovery(false);
+    setDiscoveryLogos([]);
+    
+    // Determine which zones are actually available in the cache
+    const availableZones = ['default'];
+    if (bollywoodCache?.length > 0) availableZones.push('bollywood');
+    if (animationCache?.length > 0) availableZones.push('animation');
+    
+    // Pick a random zone from what we have
+    const randomZone = availableZones[Math.floor(Math.random() * availableZones.length)];
+    
+    let targetGenres = [];
+    if (randomZone === 'bollywood') targetGenres = bollywoodCache;
+    else if (randomZone === 'animation') targetGenres = animationCache;
+    else targetGenres = genreSections.filter(s => !s.isStudio);
+
+    if (targetGenres?.length > 0) {
+      const randomGenre = targetGenres[Math.floor(Math.random() * targetGenres.length)];
+      
+      // Construct the search params exactly like handleGenreClick
+      const params = new URLSearchParams({ 
+        genreId: String(randomGenre.id), 
+        genreName: randomGenre.name 
+      });
+      
+      if (randomGenre.isStudio) params.set('isStudio', 'true');
+      if (randomGenre.isEra) {
+        params.set('isEra', 'true');
+        if (randomGenre.startYear) params.set('startYear', String(randomGenre.startYear));
+        if (randomGenre.endYear) params.set('endYear', String(randomGenre.endYear));
+      }
+      if (randomGenre.isDirector) params.set('isDirector', 'true');
+      
+      if (randomZone === 'bollywood') { 
+        params.set('lang', 'hi'); 
+        params.set('pageType', 'bollywood'); 
+      } else if (randomZone === 'animation') { 
+        params.set('pageType', 'animation'); 
+      }
+      
+      // Navigate to the movie list page
+      navigate(`/movies?${params.toString()}`);
+    } else {
+      // Fallback if no genres found
+      navigate('/');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-red-600 selection:text-white flex flex-col">
-      <Navbar />
-      <main className="flex-1 bg-[#0a0a0a]">{children}</main>
-      <footer className="px-4 md:px-12 py-8 border-t border-white/5 bg-black">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-          <Link to="/" className="text-xl font-heading tracking-tighter text-white uppercase font-bold hover:text-red-600 transition-colors duration-300">WatchItFirst</Link>
-          <p className="text-xs text-gray-600">© 2026 WatchItFirst. Powered by TMDB.</p>
-          <div className="flex items-center gap-5">
-            <Link to="/" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Home</Link>
-            <Link to="/bollywood" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Bollywood</Link>
-            <Link to="/animation" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Animation</Link>
-            <Link to="/recommendations" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">For You</Link>
+      <AnimatePresence>
+        {showDiscovery && (
+          <DiscoveryAnimation 
+            movies={discoveryLogos.length > 0 ? discoveryLogos : allMovies} 
+            onFinish={handleDiscoveryFinish} 
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <Navbar 
+          key={location.pathname} 
+          onDiscoveryTrigger={handleDiscoveryTrigger} 
+        />
+        <main className="flex-1 bg-[#0a0a0a]">{children}</main>
+        <footer className="px-4 md:px-12 py-8 border-t border-white/5 bg-black">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+            <Link to="/" className="text-xl font-heading tracking-tighter text-white uppercase font-bold hover:text-red-600 transition-colors duration-300">WatchItFirst</Link>
+            <p className="text-xs text-gray-600">© 2026 WatchItFirst. Powered by TMDB.</p>
+            <div className="flex items-center gap-5">
+              <Link to="/" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Home</Link>
+              <Link to="/bollywood" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Bollywood</Link>
+              <Link to="/animation" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Animation</Link>
+              <Link to="/recommendations" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">For You</Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 };

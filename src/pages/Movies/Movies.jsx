@@ -15,6 +15,8 @@ const Movies = () => {
   const navigate = useNavigate();
   const genreId = searchParams.get('genreId');
   const genreName = searchParams.get('genreName');
+  const personId = searchParams.get('personId');
+  const personName = searchParams.get('personName');
   const lang = searchParams.get('lang');
   const pageType = searchParams.get('pageType');
   const isStudio = searchParams.get('isStudio') === 'true';
@@ -29,6 +31,8 @@ const Movies = () => {
   const [hasMore, setHasMore] = useState(true);
   const [studioLogo, setStudioLogo] = useState(null);
   const [scrolledDown, setScrolledDown] = useState(false);
+  const isPerson = Boolean(personId);
+  const pageTitle = isPerson ? personName : genreName;
   
   // Background Slideshow State
   const [bgIndex, setBgIndex] = useState(0);
@@ -66,7 +70,33 @@ const Movies = () => {
         window.location.pathname.includes('animation') ||
         isAnimationStudio;
       if (isEra) {
-        data = await tmdbService.getBollywoodByReleaseYears(startYear, endYear, pageNum);
+        if (pageType === 'animation') {
+          data = await tmdbService.getAnimationByReleaseYears(startYear, endYear, pageNum);
+        } else {
+          data = await tmdbService.getBollywoodByReleaseYears(startYear, endYear, pageNum);
+        }
+      } else if (personId) {
+        if (pageNum === 1) {
+          try {
+            const credits = await tmdbService.getPersonMovieCredits(personId);
+            const castMovies = (credits?.cast || [])
+              .filter((movie) => movie.release_date || movie.first_air_date)
+              .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+            const uniqueMovies = [];
+            const seenIds = new Set();
+            for (const movie of castMovies) {
+              if (seenIds.has(movie.id)) continue;
+              seenIds.add(movie.id);
+              uniqueMovies.push(movie);
+            }
+            data = { results: uniqueMovies, total_results: uniqueMovies.length };
+          } catch (e) {
+            console.error('Actor credits fetch error', e);
+            data = { results: [], total_results: 0 };
+          }
+        } else {
+          data = { results: [], total_results: 0 };
+        }
       } else if (isDirector) {
         if (pageNum === 1) {
           try {
@@ -254,17 +284,17 @@ const Movies = () => {
                         ? `${TMDB_CONFIG.original}${studioLogo}`
                         : DC_LOGO_SRC
                   } 
-                  alt={genreName}
+                  alt={pageTitle}
                   className="h-28 md:h-40 lg:h-52 w-auto object-contain"
                 />
               </div>
             ) : isDirector ? (
               <h1 className="text-4xl md:text-8xl font-black uppercase tracking-tighter italic text-white leading-none">
-                {genreName || 'Director'}
+                {pageTitle || 'Director'}
               </h1>
             ) : (
               <h1 className="text-5xl md:text-9xl font-black uppercase tracking-tighter italic text-white leading-none">
-                {genreName || 'Archive'}
+                {pageTitle || 'Archive'}
               </h1>
             )}
           </motion.div>
