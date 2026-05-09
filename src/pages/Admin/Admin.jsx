@@ -251,7 +251,7 @@ const AdminPage = () => {
                         {/* Devices */}
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-[0.3em] text-red-500 mb-3 flex items-center gap-2">
-                            <Smartphone className="w-3 h-3" /> Devices ({userDetails[u.uid].devices?.length || 0} / 2)
+                            <Smartphone className="w-3 h-3" /> Devices ({userDetails[u.uid].devices?.length || 0})
                           </p>
                           {userDetails[u.uid].devices?.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

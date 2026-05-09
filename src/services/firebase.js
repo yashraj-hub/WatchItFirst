@@ -99,12 +99,7 @@ async function registerDevice(uid) {
     return { allowed: true, deviceCount: snap.size };
   }
 
-  // New device — check limit
-  if (snap.size >= 2) {
-    return { allowed: false, deviceCount: snap.size };
-  }
-
-  // Register new device
+  // Register new device without enforcing a cap
   await setDoc(doc(db, 'users', uid, 'devices', deviceId), {
     deviceId,
     createdAt: serverTimestamp(),
@@ -190,13 +185,7 @@ export async function registerWithEmail(email, password, displayName) {
 
 export async function loginWithEmail(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email, password);
-  
-  // Check device limit
-  const deviceCheck = await registerDevice(cred.user.uid);
-  if (!deviceCheck.allowed) {
-    await auth.signOut();
-    throw new Error('Device limit reached. Max 2 devices allowed. Contact support to remove a device.');
-  }
+  await registerDevice(cred.user.uid);
 
   await ensureUserFirestoreRecord(cred.user, 'email');
   return cred.user;
