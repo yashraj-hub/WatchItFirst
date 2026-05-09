@@ -1,25 +1,20 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthChange, signInAnon, signInWithGoogle, signOut } from '../services/firebase';
+import { onAuthChange, signOutUser, loginWithGoogle, ADMIN_EMAIL } from '../services/firebase';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(undefined); // undefined = still loading
+  const [user, setUser] = useState(undefined); // undefined = loading
 
   useEffect(() => {
-    const unsub = onAuthChange(async (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        // Auto sign in anonymously so every visitor gets a uid
-        await signInAnon();
-      }
-    });
+    const unsub = onAuthChange((u) => setUser(u || null));
     return unsub;
   }, []);
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   return (
-    <AuthContext.Provider value={{ user, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin, signOut: signOutUser, loginWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

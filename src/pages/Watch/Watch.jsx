@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Share2, Info, Maximize } from 'lucide-react';
 import { tmdbService } from '../../services/tmdb';
-import { saveContinueWatching } from '../../services/firebase';
+import { saveContinueWatching, addToWatchHistory } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 
 const Watch = () => {
@@ -28,7 +28,7 @@ const Watch = () => {
             if (logo) setLogoPath(logo.file_path);
           } catch {}
           if (user) {
-            saveContinueWatching(user.uid, {
+            const movieData = {
               id: result.id,
               title: result.title || result.name,
               poster_path: result.poster_path,
@@ -36,7 +36,9 @@ const Watch = () => {
               vote_average: result.vote_average,
               media_type: mediaType,
               imdb_id: imdbId,
-            });
+            };
+            saveContinueWatching(user.uid, movieData);
+            addToWatchHistory(user.uid, movieData);
           }
         }
       })

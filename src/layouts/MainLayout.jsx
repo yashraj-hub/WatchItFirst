@@ -1,18 +1,22 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock } from 'lucide-react';
+import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock, Shield } from 'lucide-react';
 import { fetchCategories, fetchPageGenres, selectPageGenres } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 import DiscoveryAnimation from '../components/DiscoveryAnimation';
 import { tmdbService } from '../services/tmdb';
+import { useAuth } from '../context/AuthContext';
+import { getUserProfile } from '../services/firebase';
 
-const Navbar = ({ onDiscoveryTrigger }) => {
+const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
   const [scrolled, setScrolled] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileCatsOpen, setMobileCatsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [userAvatar, setUserAvatar] = useState(null);
+  const { user } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,6 +90,10 @@ const Navbar = ({ onDiscoveryTrigger }) => {
   ) : (
     <div className="py-8 flex items-center justify-center text-[10px] uppercase tracking-[0.2em] text-gray-500">No categories available.</div>
   );
+
+  useEffect(() => {
+    if (user) getUserProfile(user.uid).then(p => setUserAvatar(p?.avatar || null));
+  }, [user, location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -292,12 +300,22 @@ const Navbar = ({ onDiscoveryTrigger }) => {
             <Search className="w-5 h-5" />
           </Link>
 
-          <div ref={profileRef} className="hidden md:flex relative w-8 h-8 rounded-full bg-white/10 border border-white/10 items-center justify-center cursor-pointer hover:bg-white/20 transition-all"
-            onClick={() => setProfileOpen(p => !p)}
-          >
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
+          <div ref={profileRef} className="hidden md:flex items-center gap-3 relative">
+            <div
+              ref={profileRef}
+              className="w-8 h-8 rounded-full overflow-hidden border border-white/20 hover:border-white/40 cursor-pointer transition-all flex-shrink-0"
+              onClick={() => setProfileOpen(p => !p)}
+            >
+              {userAvatar ? (
+                <img src={userAvatar} alt="avatar" className="w-full h-full object-cover bg-white/10" />
+              ) : (
+                <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  </svg>
+                </div>
+              )}
+            </div>
             <AnimatePresence>
               {profileOpen && (
                 <motion.div
@@ -305,15 +323,22 @@ const Navbar = ({ onDiscoveryTrigger }) => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-[calc(100%+10px)] w-44 bg-black/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-50"
+                  className="absolute right-0 top-[calc(100%+10px)] w-44 bg-black/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-[110]"
                 >
-                  <Link
-                    to="/my-list"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all"
-                  >
+                  <button onClick={() => { setProfileOpen(false); navigate('/my-list'); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all">
                     <Bookmark className="w-4 h-4 text-red-500" /> My List
-                  </Link>
+                  </button>
+                  <button onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all border-t border-white/5">
+                    <Star className="w-4 h-4 text-gray-500" /> Profile
+                  </button>
+                  {isAdmin && (
+                    <button onClick={() => { setProfileOpen(false); navigate('/admin'); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-600/10 transition-all border-t border-white/5">
+                      <Shield className="w-4 h-4 text-red-500" /> Admin
+                    </button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -434,8 +459,15 @@ const Navbar = ({ onDiscoveryTrigger }) => {
 const MainLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [discoveryLogos, setDiscoveryLogos] = useState([]);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (user === undefined) return; // still loading
+    if (user === null) navigate('/auth');
+  }, [user]);
   
   // Get all movies from categories state for the roulette
   const genreSections = useSelector((state) => state.categories.genreSections);
@@ -510,7 +542,8 @@ const MainLayout = ({ children }) => {
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar 
           key={location.pathname} 
-          onDiscoveryTrigger={handleDiscoveryTrigger} 
+          onDiscoveryTrigger={handleDiscoveryTrigger}
+          isAdmin={isAdmin}
         />
         <main className="flex-1 bg-[#0a0a0a]">{children}</main>
         <footer className="px-4 md:px-12 py-8 border-t border-white/5 bg-black">
