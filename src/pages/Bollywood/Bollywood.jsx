@@ -6,8 +6,14 @@ import GenreExplorerSection from '../../components/GenreExplorerSection';
 import HeroSection from '../../components/HeroSection';
 import Top10Section from '../../components/Top10Section';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSEO } from '../../hooks/useSEO';
 
 const Bollywood = () => {
+  useSEO({
+    title: 'Bollywood Movies — Hindi Films',
+    description: 'Explore the best Bollywood and Hindi movies by studio, era and genre on WatchItFirst. From classic hits to modern blockbusters.',
+    url: '/bollywood',
+  });
   const status = useSelector((state) => state.categories.status);
 
   const [trending, setTrending] = useState([]);

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /watch/
+Disallow: /my-list
+
+Sitemap: https://watchitfirst.onrender.com/sitemap.xml

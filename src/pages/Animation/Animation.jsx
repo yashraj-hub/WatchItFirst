@@ -6,8 +6,14 @@ import GenreExplorerSection from '../../components/GenreExplorerSection';
 import HeroSection from '../../components/HeroSection';
 import Top10Section from '../../components/Top10Section';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSEO } from '../../hooks/useSEO';
 
 const Animation = () => {
+  useSEO({
+    title: 'Animation Movies — Pixar, Disney, Ghibli & More',
+    description: 'Discover the best animated movies from Pixar, Disney, Studio Ghibli, DreamWorks and more on WatchItFirst.',
+    url: '/animation',
+  });
   const status = useSelector((state) => state.categories.status);
 
   const [trending, setTrending] = useState([]);

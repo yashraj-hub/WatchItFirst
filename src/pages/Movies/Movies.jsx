@@ -5,6 +5,7 @@ import MainLayout from '../../layouts/MainLayout';
 import MovieCard from '../../components/MovieCard';
 import { Loader2, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSEO } from '../../hooks/useSEO';
 
 const DC_LOGO_SRC = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/DC_Studios_logo.svg/1280px-DC_Studios_logo.svg.png';
 const MARVEL_LOGO_SRC = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/500px-Marvel_Logo.svg.png';
@@ -33,6 +34,14 @@ const Movies = () => {
   const [scrolledDown, setScrolledDown] = useState(false);
   const isPerson = Boolean(personId);
   const pageTitle = isPerson ? personName : genreName;
+
+  useSEO({
+    title: pageTitle ? `${pageTitle} Movies` : 'Browse Movies',
+    description: pageTitle
+      ? `Watch the best ${pageTitle} movies and films on WatchItFirst. Browse the full collection.`
+      : 'Browse and stream movies by genre, studio, era and more on WatchItFirst.',
+    url: `/movies?genreId=${genreId}&genreName=${genreName}`,
+  });
   
   // Background Slideshow State
   const [bgIndex, setBgIndex] = useState(0);

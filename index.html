@@ -2,12 +2,62 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Bebas+Neue&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>movie-app</title>
+
+    <!-- Primary SEO -->
+    <title>WatchItFirst — Stream Movies & TV Shows</title>
+    <meta name="description" content="WatchItFirst is your ultimate destination to discover, explore and stream movies, TV shows, Bollywood hits and animated classics. Browse by franchise, genre, studio and more." />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="WatchItFirst" />
+    <meta name="keywords" content="watch movies online, stream movies, TV shows, Bollywood movies, animated movies, movie recommendations, franchise movies, WatchItFirst" />
+    <link rel="canonical" href="https://watchitfirst.onrender.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WatchItFirst" />
+    <meta property="og:title" content="WatchItFirst — Stream Movies & TV Shows" />
+    <meta property="og:description" content="Discover and stream movies, TV shows, Bollywood hits and animated classics. Browse by franchise, genre and studio." />
+    <meta property="og:image" content="https://watchitfirst.onrender.com/og-image.jpg" />
+    <meta property="og:url" content="https://watchitfirst.onrender.com/" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WatchItFirst — Stream Movies & TV Shows" />
+    <meta name="twitter:description" content="Discover and stream movies, TV shows, Bollywood hits and animated classics." />
+    <meta name="twitter:image" content="https://watchitfirst.onrender.com/og-image.jpg" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Bebas+Neue&display=swap" rel="stylesheet" />
+
+    <!-- Preconnect to TMDB for faster image loads -->
+    <link rel="preconnect" href="https://image.tmdb.org" />
+    <link rel="dns-prefetch" href="https://api.themoviedb.org" />
+
+    <!-- JSON-LD: WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "WatchItFirst",
+      "url": "https://watchitfirst.onrender.com",
+      "description": "Discover and stream movies, TV shows, Bollywood hits and animated classics.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://watchitfirst.onrender.com/search?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

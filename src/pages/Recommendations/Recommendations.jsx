@@ -5,6 +5,7 @@ import MainLayout from '../../layouts/MainLayout';
 import MovieCard from '../../components/MovieCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronRight, Play, Star } from 'lucide-react';
+import { useSEO } from '../../hooks/useSEO';
 
 // ── Watch history ─────────────────────────────────────────────────────────────
 const HISTORY_KEY = 'wif_watch_history';
@@ -301,6 +302,12 @@ const TABS = ['english', 'bollywood', 'animation'];
 // ── Page ──────────────────────────────────────────────────────────────────────
 const Recommendations = () => {
   const [activeTab, setActiveTab] = useState('english');
+
+  useSEO({
+    title: 'Recommendations — Curated For You',
+    description: 'Get personalized movie recommendations across Hollywood, Bollywood and Animation based on your taste on WatchItFirst.',
+    url: '/recommendations',
+  });
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const fetched = useRef(new Set());

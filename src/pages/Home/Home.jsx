@@ -5,8 +5,21 @@ import GenreExplorerSection from '../../components/GenreExplorerSection';
 import HeroSection from '../../components/HeroSection';
 import Top10Section from '../../components/Top10Section';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSEO } from '../../hooks/useSEO';
 
 const Home = () => {
+  useSEO({
+    title: 'Home — Discover Movies & TV Shows',
+    description: 'Browse trending movies, top 10 charts, Hollywood studios and more on WatchItFirst.',
+    url: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: 'WatchItFirst Home',
+      url: 'https://watchitfirst.onrender.com/',
+      description: 'Browse trending movies, top 10 charts, Hollywood studios and more.',
+    },
+  });
   const genreSections = useSelector((state) => state.categories.genreSections);
   const trending = useSelector((state) => state.categories.trending);
   const nowPlaying = useSelector((state) => state.categories.nowPlaying);

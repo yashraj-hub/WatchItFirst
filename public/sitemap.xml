@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Static pages -->
+  <url>
+    <loc>https://watchitfirst.onrender.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/bollywood</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/animation</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/recommendations</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/search</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/my-list</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Popular genre pages -->
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=28&amp;genreName=Action</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=35&amp;genreName=Comedy</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=18&amp;genreName=Drama</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=27&amp;genreName=Horror</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=878&amp;genreName=Science+Fiction</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=10749&amp;genreName=Romance</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=12&amp;genreName=Adventure</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=53&amp;genreName=Thriller</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Popular studio pages -->
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=420&amp;genreName=Marvel+Studios&amp;isStudio=true</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=429&amp;genreName=DC+Studios&amp;isStudio=true</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=174&amp;genreName=Warner+Bros.&amp;isStudio=true</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://watchitfirst.onrender.com/movies?genreId=33&amp;genreName=Universal+Pictures&amp;isStudio=true</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

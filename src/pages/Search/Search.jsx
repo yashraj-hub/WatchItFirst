@@ -4,6 +4,7 @@ import { tmdbService, TMDB_CONFIG } from '../../services/tmdb';
 import MainLayout from '../../layouts/MainLayout';
 import { Search as SearchIcon, X, Star, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSEO } from '../../hooks/useSEO';
 
 const NOISE_KEYWORDS = ['making of', 'documentary', 'unauthorized', 'repackaged', 'soundtrack', 'tribute', 'parody', 'fan film', 'trailer', 'behind the scenes'];
 
@@ -142,6 +143,14 @@ const Search = () => {
 
   const inputRef = useRef(null);
   const navigate = useNavigate();
+
+  useSEO({
+    title: query.length >= 2 ? `Search: ${query}` : 'Search Movies & Shows',
+    description: query.length >= 2
+      ? `Search results for "${query}" — movies, TV shows and franchises on WatchItFirst.`
+      : 'Search for movies, TV shows, franchises and more on WatchItFirst.',
+    url: '/search',
+  });
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
