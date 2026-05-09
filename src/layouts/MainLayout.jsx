@@ -291,6 +291,20 @@ const Navbar = ({ onDiscoveryTrigger }) => {
                   transition={{ duration: 0.15 }}
                   className="absolute right-0 top-[calc(100%+10px)] w-44 bg-black/95 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl overflow-hidden z-50"
                 >
+                  <Link
+                    to="/my-list"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Bookmark className="w-4 h-4 text-red-500" /> My List
+                  </Link>
+                  <Link
+                    to="/"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all border-t border-white/5"
+                  >
+                    <Clock className="w-4 h-4 text-gray-500" /> Continue Watching
+                  </Link>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -363,6 +377,10 @@ const Navbar = ({ onDiscoveryTrigger }) => {
 
                 <Link to="/recommendations" onClick={() => setMobileOpen(false)} className="py-4 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
                   <Star className="w-4 h-4" /> For You
+                </Link>
+
+                <Link to="/my-list" onClick={() => setMobileOpen(false)} className="py-4 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
+                  <Bookmark className="w-4 h-4 text-red-500" /> My List
                 </Link>
 
                 <button

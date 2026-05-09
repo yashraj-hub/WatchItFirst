@@ -10,6 +10,7 @@ import DataExplorer from '../pages/DataExplorer/DataExplorer';
 import ErrorPage from '../pages/ErrorPage';
 
 import Recommendations from '../pages/Recommendations/Recommendations';
+import MyList from '../pages/MyList/MyList';
 
 export const router = createBrowserRouter([
   {
@@ -58,7 +59,13 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
-    element: <Home />, // Placeholder
+    path: '/my-list',
+    element: <MyList />,
+    errorElement: <ErrorPage />,
+  },
+  {
+    path: '/trending',
+    element: <Home />,
     errorElement: <ErrorPage />,
   },
   {

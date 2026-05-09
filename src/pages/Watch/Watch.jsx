@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Share2, Info, Maximize } from 'lucide-react';
 import { tmdbService } from '../../services/tmdb';
-import { addToContinueWatching } from '../../hooks/useUserData';
+import { saveContinueWatching } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const Watch = () => {
   const { imdbId } = useParams();
@@ -10,6 +11,7 @@ const Watch = () => {
   const [title, setTitle] = useState('');
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     tmdbService.findByImdbId(imdbId)
@@ -18,15 +20,17 @@ const Watch = () => {
         const mediaType = data?.movie_results?.[0] ? 'movie' : 'tv';
         if (result) {
           setTitle(result.title || result.name);
-          addToContinueWatching({
-            id: result.id,
-            title: result.title || result.name,
-            poster_path: result.poster_path,
-            release_date: result.release_date || result.first_air_date,
-            vote_average: result.vote_average,
-            media_type: mediaType,
-            imdb_id: imdbId,
-          });
+          if (user) {
+            saveContinueWatching(user.uid, {
+              id: result.id,
+              title: result.title || result.name,
+              poster_path: result.poster_path,
+              release_date: result.release_date || result.first_air_date,
+              vote_average: result.vote_average,
+              media_type: mediaType,
+              imdb_id: imdbId,
+            });
+          }
         }
       })
       .catch(() => {});

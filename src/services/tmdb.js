@@ -1,3 +1,6 @@
+import { db } from './firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
@@ -206,6 +209,64 @@ async function runSingletonSync(syncKey, loader) {
   }
 }
 
+// ── Firestore shared cache (6h TTL, shared across all users) ──────────────────
+const FS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+async function getFromFirestoreCache(key) {
+  try {
+    const snap = await getDoc(doc(db, 'cache', key));
+    if (!snap.exists()) return null;
+    const { data, cachedAt } = snap.data();
+    if (Date.now() - cachedAt > FS_CACHE_TTL) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function saveToFirestoreCache(key, data) {
+  try {
+    await setDoc(doc(db, 'cache', key), { data, cachedAt: Date.now() });
+  } catch {
+    // Silently fail — cache is best-effort
+  }
+}
+
+async function runSingletonSyncWithFirestore(syncKey, loader) {
+  // 1. Check memory/localStorage cache first (fastest)
+  const cache = getCache();
+  if (cache[syncKey]) return cache[syncKey];
+
+  // 2. Deduplicate in-flight requests
+  if (syncPromises.has(syncKey)) return syncPromises.get(syncKey);
+
+  const syncPromise = (async () => {
+    // 3. Check Firestore shared cache
+    const fsData = await getFromFirestoreCache(syncKey);
+    if (fsData) {
+      setCache(syncKey, {}, fsData); // warm local cache
+      return fsData;
+    }
+
+    // 4. Fetch from TMDB (only if no cache anywhere)
+    const data = await loader();
+
+    // 5. Save to both caches in parallel
+    setCache(syncKey, {}, data);
+    saveToFirestoreCache(syncKey, data); // fire and forget
+
+    return data;
+  })();
+
+  syncPromises.set(syncKey, syncPromise);
+
+  try {
+    return await syncPromise;
+  } finally {
+    syncPromises.delete(syncKey);
+  }
+}
+
 export const tmdbService = {
   getTrending: (type = 'movie', timeWindow = 'day') =>
     fetchFromTMDB(`/trending/${type}/${timeWindow}`),
@@ -394,7 +455,7 @@ export const tmdbService = {
     fetchFromTMDB(`/person/${personId}/movie_credits`),
 
   getBollywoodSyncData: async (genreIds) => {
-    return runSingletonSync('bollywood_sync_data', async () => {
+    return runSingletonSyncWithFirestore('bollywood_sync_data', async () => {
       const today = new Date().toISOString().split('T')[0];
       const currentYear = new Date().getFullYear();
 
@@ -495,7 +556,7 @@ export const tmdbService = {
   },
 
   getAnimationSyncData: async () => {
-    return runSingletonSync('animation_sync_data', async () => {
+    return runSingletonSyncWithFirestore('animation_sync_data', async () => {
       const today = new Date().toISOString().split('T')[0];
 
       const studios = [
@@ -663,7 +724,7 @@ export const tmdbService = {
     fetchFromTMDB(`/movie/${id}/images`, { include_image_language: 'en,null' }),
 
   getFullSyncData: async (genreIds) => {
-    return runSingletonSync('master_sync_data', async () => {
+    return runSingletonSyncWithFirestore('master_sync_data', async () => {
       const globalStudios = [
         { id: 174, name: 'Warner Bros.' },
         { id: 429, name: 'DC Studios' },

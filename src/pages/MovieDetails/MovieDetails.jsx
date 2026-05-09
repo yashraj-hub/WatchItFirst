@@ -1,35 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tmdbService, TMDB_CONFIG } from '../../services/tmdb';
 import MainLayout from '../../layouts/MainLayout';
 import MovieCard from '../../components/MovieCard';
 import { Play, Star, Clock, Calendar, Globe, Award, ChevronRight, Users, ArrowLeft, Bookmark, BookmarkCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { toggleMyList, isInMyList, addToContinueWatching } from '../../hooks/useUserData';
+import { saveToMyList, removeFromMyList, isInMyList, saveContinueWatching } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 import { useSEO } from '../../hooks/useSEO';
+
+const initialDetailsState = {
+  movie: null,
+  loading: true,
+  showTrailer: false,
+};
+
+function detailsReducer(state, action) {
+  switch (action.type) {
+    case 'start':
+      return { ...state, loading: true, showTrailer: false };
+    case 'loaded':
+      return { ...state, movie: action.movie };
+    case 'showTrailer':
+      return { ...state, showTrailer: true };
+    case 'loadedComplete':
+      return { ...state, loading: false };
+    default:
+      return state;
+  }
+}
 
 const MovieDetails = () => {
   const { id } = useParams();
-  const [movie, setMovie] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showTrailer, setShowTrailer] = useState(false);
+  const [state, dispatch] = useReducer(detailsReducer, initialDetailsState);
   const [saved, setSaved] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { movie, loading, showTrailer } = state;
 
   useEffect(() => {
-    setLoading(true);
-    setShowTrailer(false);
-    setSaved(isInMyList(id));
+    if (!user) return;
+    isInMyList(user.uid, id).then(setSaved);
+  }, [user, id]);
+
+  useEffect(() => {
+    dispatch({ type: 'start' });
     window.scrollTo(0, 0);
 
     tmdbService.getMovieDetails(id)
-      .then(data => setMovie(data))
+      .then(data => dispatch({ type: 'loaded', movie: data }))
       .catch(err => console.error('Failed to fetch details:', err))
-      .finally(() => setLoading(false));
+      .finally(() => dispatch({ type: 'loadedComplete' }));
 
-    const timer = setTimeout(() => setShowTrailer(true), 5000);
+    const timer = setTimeout(() => dispatch({ type: 'showTrailer' }), 5000);
     return () => clearTimeout(timer);
   }, [id]);
+
 
   // All hooks must be called before any conditional return
   const director = movie?.credits?.crew?.find(p => p.job === 'Director');
@@ -62,31 +88,39 @@ const MovieDetails = () => {
 
   const handlePlay = () => {
     if (movie?.external_ids?.imdb_id) {
-      addToContinueWatching({
-        id: movie.id,
-        title: movie.title,
-        poster_path: movie.poster_path,
-        release_date: movie.release_date,
-        vote_average: movie.vote_average,
-        media_type: 'movie',
-        imdb_id: movie.external_ids.imdb_id,
-      });
+      if (user) {
+        saveContinueWatching(user.uid, {
+          id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+          media_type: 'movie',
+          imdb_id: movie.external_ids.imdb_id,
+        });
+      }
       navigate(`/watch/${movie.external_ids.imdb_id}`);
     } else {
       alert('IMDb ID not found.');
     }
   };
 
-  const handleBookmark = () => {
-    const result = toggleMyList({
-      id: movie.id,
-      title: movie.title,
-      poster_path: movie.poster_path,
-      release_date: movie.release_date,
-      vote_average: movie.vote_average,
-      media_type: 'movie',
-    });
-    setSaved(result);
+  const handleBookmark = async () => {
+    if (!user) return;
+    if (saved) {
+      await removeFromMyList(user.uid, movie.id);
+      setSaved(false);
+    } else {
+      await saveToMyList(user.uid, {
+        id: movie.id,
+        title: movie.title,
+        poster_path: movie.poster_path,
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+        media_type: 'movie',
+      });
+      setSaved(true);
+    }
   };
 
   if (loading) return (

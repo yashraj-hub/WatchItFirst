@@ -1,49 +1,172 @@
-const CW_KEY = 'wif_continue_watching';
-const ML_KEY = 'wif_my_list';
-const MAX_CW = 10;
+import { useEffect, useState } from 'react';
 
-function readJSON(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
-}
-function writeJSON(key, data) {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
-}
+const MY_LIST_KEY = 'wif_my_list';
 
-const toId = (id) => Number(id);
+const MAX_MY_LIST_ITEMS = 100;
 
-// ── Continue Watching ─────────────────────────────────────────────────────────
-export function addToContinueWatching(movie) {
-  const list = readJSON(CW_KEY).filter(m => toId(m.id) !== toId(movie.id));
-  list.unshift({ ...movie, id: toId(movie.id), watchedAt: Date.now() });
-  writeJSON(CW_KEY, list.slice(0, MAX_CW));
+function normalizeListItem(item) {
+  return {
+    id: item?.id,
+    title: item?.title || item?.name || '',
+    poster_path: item?.poster_path || '',
+    release_date: item?.release_date || item?.first_air_date || '',
+    vote_average: item?.vote_average || 0,
+    media_type: item?.media_type || 'movie',
+    addedAt: item?.addedAt || Date.now(),
+  };
 }
 
-export function getContinueWatching() {
-  return readJSON(CW_KEY);
+function normalizeStoredList(value) {
+  if (!Array.isArray(value)) return [];
+  const normalized = value
+    .map(normalizeListItem)
+    .filter(item => item.id != null)
+    .slice(0, MAX_MY_LIST_ITEMS);
+
+  const ids = new Set();
+  return normalized.filter(item => {
+    if (ids.has(String(item.id))) return false;
+    ids.add(String(item.id));
+    return true;
+  });
 }
 
-export function removeFromContinueWatching(id) {
-  writeJSON(CW_KEY, readJSON(CW_KEY).filter(m => toId(m.id) !== toId(id)));
+function getStoredList() {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(MY_LIST_KEY) || '[]');
+    return normalizeStoredList(parsed);
+  } catch {
+    return [];
+  }
 }
 
-// ── My List ───────────────────────────────────────────────────────────────────
+function isQuotaExceeded(error) {
+  return error instanceof DOMException && (
+    error.code === 22 ||
+    error.code === 1014 ||
+    error.name === 'QuotaExceededError' ||
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+  );
+}
+
+function saveStoredList(list) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const compactList = normalizeStoredList(list);
+  try {
+    localStorage.setItem(MY_LIST_KEY, JSON.stringify(compactList));
+    notifyMyListUpdated();
+  } catch (error) {
+    if (isQuotaExceeded(error)) {
+      console.warn('My list storage quota exceeded. Trimming saved items.');
+      const trimmed = compactList.slice(0, Math.min(compactList.length, MAX_MY_LIST_ITEMS));
+      try {
+        localStorage.setItem(MY_LIST_KEY, JSON.stringify(trimmed));
+        notifyMyListUpdated();
+      } catch (innerError) {
+        console.error('Failed to save my list after trimming. Clearing saved list.', innerError);
+        localStorage.removeItem(MY_LIST_KEY);
+        notifyMyListUpdated();
+      }
+    } else {
+      console.error('Failed to save my list:', error);
+    }
+  }
+}
+
+function notifyMyListUpdated() {
+  if (typeof window !== 'undefined' && window?.dispatchEvent) {
+    window.dispatchEvent(new Event('wif_my_list_updated'));
+  }
+}
+
 export function getMyList() {
-  return readJSON(ML_KEY);
+  return getStoredList();
 }
 
 export function isInMyList(id) {
-  return readJSON(ML_KEY).some(m => toId(m.id) === toId(id));
+  return getStoredList().some(movie => String(movie.id) === String(id));
+}
+
+function createListItem(movie) {
+  return {
+    id: movie.id,
+    title: movie.title || movie.name || '',
+    poster_path: movie.poster_path || '',
+    release_date: movie.release_date || movie.first_air_date || '',
+    vote_average: movie.vote_average || 0,
+    media_type: movie.media_type || 'movie',
+    addedAt: Date.now(),
+  };
+}
+
+export function addToMyList(movie) {
+  const list = getStoredList();
+  const exists = list.some(item => String(item.id) === String(movie.id));
+  if (exists) return list;
+  const nextList = [createListItem(movie), ...list];
+  saveStoredList(nextList);
+  return nextList;
+}
+
+export function removeFromMyList(id) {
+  const nextList = getStoredList().filter(item => String(item.id) !== String(id));
+  saveStoredList(nextList);
+  return nextList;
 }
 
 export function toggleMyList(movie) {
-  const list = readJSON(ML_KEY);
-  const numId = toId(movie.id);
-  const exists = list.some(m => toId(m.id) === numId);
-  if (exists) {
-    writeJSON(ML_KEY, list.filter(m => toId(m.id) !== numId));
+  if (isInMyList(movie.id)) {
+    removeFromMyList(movie.id);
     return false;
-  } else {
-    writeJSON(ML_KEY, [{ ...movie, id: numId, addedAt: Date.now() }, ...list]);
-    return true;
   }
+
+  addToMyList(movie);
+  return true;
+}
+
+export function useMyListState() {
+  const [list, setList] = useState(() => getStoredList());
+
+  useEffect(() => {
+    const handleUpdate = () => setList(getStoredList());
+    window.addEventListener('wif_my_list_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('wif_my_list_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  return [list, setList];
+}
+
+// ── Continue Watching ─────────────────────────────────────────────────────────
+export function getContinueWatching() {
+  try {
+    return JSON.parse(localStorage.getItem('wif_continue_watching') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function addToContinueWatching(movie) {
+  const list = getContinueWatching().filter(m => String(m.id) !== String(movie.id));
+  const item = {
+    id: movie.id,
+    title: movie.title || movie.name || '',
+    poster_path: movie.poster_path || '',
+    release_date: movie.release_date || '',
+    vote_average: movie.vote_average || 0,
+    media_type: movie.media_type || 'movie',
+    imdb_id: movie.imdb_id || '',
+    watchedAt: Date.now(),
+  };
+  localStorage.setItem('wif_continue_watching', JSON.stringify([item, ...list].slice(0, 10)));
+}
+
+export function removeFromContinueWatching(id) {
+  const list = getContinueWatching().filter(m => String(m.id) !== String(id));
+  localStorage.setItem('wif_continue_watching', JSON.stringify(list));
 }

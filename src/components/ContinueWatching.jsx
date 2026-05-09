@@ -2,15 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { Play, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TMDB_CONFIG } from '../services/tmdb';
-import { removeFromContinueWatching } from '../hooks/useUserData';
+import { removeFromContinueWatching } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 
-const ContinueWatching = ({ items, onUpdate }) => {
+const ContinueWatching = ({ items, onRemove }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const handleRemove = (e, id) => {
+  const handleRemove = async (e, id) => {
     e.stopPropagation();
-    removeFromContinueWatching(id);
-    onUpdate();
+    if (user) await removeFromContinueWatching(user.uid, id);
+    onRemove(id);
   };
 
   if (!items.length) return null;
@@ -26,7 +28,7 @@ const ContinueWatching = ({ items, onUpdate }) => {
               layout
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
+              exit={{ opacity: 0, scale: 0.85 }}
               onClick={() => navigate(`/watch/${movie.imdb_id}`)}
               className="relative flex-shrink-0 w-36 md:w-44 cursor-pointer group"
             >
@@ -48,6 +50,7 @@ const ContinueWatching = ({ items, onUpdate }) => {
                 <button
                   onClick={(e) => handleRemove(e, movie.id)}
                   className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/70 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                  style={{ zIndex: 10 }}
                 >
                   <X className="w-3 h-3 text-white" />
                 </button>

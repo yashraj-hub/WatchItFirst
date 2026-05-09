@@ -4,30 +4,29 @@ import MainLayout from '../../layouts/MainLayout';
 import GenreExplorerSection from '../../components/GenreExplorerSection';
 import HeroSection from '../../components/HeroSection';
 import Top10Section from '../../components/Top10Section';
+import ContinueWatching from '../../components/ContinueWatching';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSEO } from '../../hooks/useSEO';
+import { getContinueWatching } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const Home = () => {
   useSEO({
     title: 'Home — Discover Movies & TV Shows',
     description: 'Browse trending movies, top 10 charts, Hollywood studios and more on WatchItFirst.',
     url: '/',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@type': 'WebPage',
-      name: 'WatchItFirst Home',
-      url: 'https://watchitfirst.onrender.com/',
-      description: 'Browse trending movies, top 10 charts, Hollywood studios and more.',
-    },
   });
+
   const genreSections = useSelector((state) => state.categories.genreSections);
   const trending = useSelector((state) => state.categories.trending);
   const nowPlaying = useSelector((state) => state.categories.nowPlaying);
   const status = useSelector((state) => state.categories.status);
+  const { user } = useAuth();
 
   const [heroMovies, setHeroMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  const [continueWatching, setContinueWatching] = useState([]);
 
   useEffect(() => {
     if (nowPlaying.length > 0 && heroMovies.length === 0) {
@@ -36,6 +35,11 @@ const Home = () => {
       setTimeout(() => setShowContent(true), 100);
     }
   }, [nowPlaying]);
+
+  useEffect(() => {
+    if (!user) return;
+    getContinueWatching(user.uid).then(setContinueWatching);
+  }, [user]);
 
   return (
     <MainLayout>
@@ -48,7 +52,6 @@ const Home = () => {
           ) : (
             <>
               <HeroSection movies={heroMovies} showContent={showContent} />
-
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: showContent ? 1 : 0, y: showContent ? 0 : 50 }}
@@ -56,6 +59,10 @@ const Home = () => {
                 className="relative z-20 pt-12 pb-10 -mt-40"
               >
                 <Top10Section title="Global Top 10 Spotlight" movies={trending} />
+                <ContinueWatching
+                  items={continueWatching}
+                  onRemove={(id) => setContinueWatching(prev => prev.filter(m => String(m.id) !== String(id)))}
+                />
                 <div className="relative mt-8 md:mt-12">
                   {genreSections.filter(s => s.isStudio).map((section) => (
                     <GenreExplorerSection key={section.id} section={section} />
