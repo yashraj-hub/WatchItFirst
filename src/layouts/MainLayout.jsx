@@ -298,13 +298,6 @@ const Navbar = ({ onDiscoveryTrigger }) => {
                   >
                     <Bookmark className="w-4 h-4 text-red-500" /> My List
                   </Link>
-                  <Link
-                    to="/"
-                    onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all border-t border-white/5"
-                  >
-                    <Clock className="w-4 h-4 text-gray-500" /> Continue Watching
-                  </Link>
                 </motion.div>
               )}
             </AnimatePresence>
