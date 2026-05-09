@@ -12,7 +12,15 @@ const Watch = () => {
   const [logoPath, setLogoPath] = useState(null);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
-  const { user } = useAuth();
+  const { user, checkCanPlay } = useAuth();
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    // Check session before allowing playback
+    checkCanPlay().then(canPlay => {
+      if (!canPlay) { setBlocked(true); navigate(-1); }
+    });
+  }, []);
 
   useEffect(() => {
     tmdbService.findByImdbId(imdbId)

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock, Shield } from 'lucide-react';
+import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock, Shield, LogOut } from 'lucide-react';
 import { fetchCategories, fetchPageGenres, selectPageGenres } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 import DiscoveryAnimation from '../components/DiscoveryAnimation';
@@ -16,7 +16,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
   const [mobileCatsOpen, setMobileCatsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState(null);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,6 +94,12 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
   useEffect(() => {
     if (user) getUserProfile(user.uid).then(p => setUserAvatar(p?.avatar || null));
   }, [user, location.pathname]);
+
+  useEffect(() => {
+    const handler = (e) => setUserAvatar(e.detail);
+    window.addEventListener('avatar-updated', handler);
+    return () => window.removeEventListener('avatar-updated', handler);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -339,6 +345,16 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                       <Shield className="w-4 h-4 text-red-500" /> Admin
                     </button>
                   )}
+                  <button
+                    onClick={async () => {
+                      setProfileOpen(false);
+                      await signOut();
+                      navigate('/auth');
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all border-t border-white/5"
+                  >
+                    <LogOut className="w-4 h-4 text-gray-500" /> Logout
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -462,12 +478,59 @@ const MainLayout = ({ children }) => {
   const { user, isAdmin } = useAuth();
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [discoveryLogos, setDiscoveryLogos] = useState([]);
+  const typeaheadRef = useRef({ value: '', timer: null, opened: false });
 
   // Redirect to auth if not logged in
   useEffect(() => {
     if (user === undefined) return; // still loading
     if (user === null) navigate('/auth');
   }, [user]);
+
+  useEffect(() => {
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    if (!isDesktop) return;
+
+    const isEditableTarget = (target) => {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target.isContentEditable) return true;
+      return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+    };
+
+    const resetBuffer = () => {
+      typeaheadRef.current.value = '';
+      typeaheadRef.current.opened = false;
+      if (typeaheadRef.current.timer) {
+        window.clearTimeout(typeaheadRef.current.timer);
+        typeaheadRef.current.timer = null;
+      }
+    };
+
+    const handleGlobalType = (e) => {
+      if (location.pathname.startsWith('/watch')) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (e.key.length !== 1 || /\s/.test(e.key)) return;
+
+      const nextQuery = `${typeaheadRef.current.value}${e.key}`;
+      typeaheadRef.current.value = nextQuery;
+
+      if (typeaheadRef.current.timer) window.clearTimeout(typeaheadRef.current.timer);
+      typeaheadRef.current.timer = window.setTimeout(resetBuffer, 800);
+
+      navigate('/search', {
+        state: { initialQuery: nextQuery },
+        replace: typeaheadRef.current.opened || location.pathname === '/search',
+      });
+
+      typeaheadRef.current.opened = true;
+    };
+
+    window.addEventListener('keydown', handleGlobalType);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalType);
+      resetBuffer();
+    };
+  }, [location.pathname, navigate]);
   
   // Get all movies from categories state for the roulette
   const genreSections = useSelector((state) => state.categories.genreSections);

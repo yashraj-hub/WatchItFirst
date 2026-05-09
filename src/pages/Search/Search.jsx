@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { tmdbService, TMDB_CONFIG } from '../../services/tmdb';
 import MainLayout from '../../layouts/MainLayout';
 import { Search as SearchIcon, X, Star, Layers, Users } from 'lucide-react';
@@ -136,7 +136,8 @@ const CollectionGroup = ({ group, navigate }) => (
 );
 
 const Search = () => {
-  const [query, setQuery] = useState('');
+  const location = useLocation();
+  const [query, setQuery] = useState(() => location.state?.initialQuery || '');
   const [suggestion, setSuggestion] = useState('');
   const [searchResult, setSearchResult] = useState(null); // { collections, standalone, items }
   const [loading, setLoading] = useState(false);
@@ -153,6 +154,14 @@ const Search = () => {
   });
 
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    const initialQuery = location.state?.initialQuery;
+    if (typeof initialQuery === 'string') {
+      setQuery(initialQuery);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [location.state?.initialQuery]);
 
   // Autocomplete suggestion from first result
   useEffect(() => {

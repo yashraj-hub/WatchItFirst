@@ -7,7 +7,7 @@ import { saveToMyList, removeFromMyList, isInMyList } from '../services/firebase
 
 const MovieCard = memo(({ movie }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, checkCanPlay } = useAuth();
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -17,6 +17,8 @@ const MovieCard = memo(({ movie }) => {
 
   const handlePlay = async (e) => {
     e.stopPropagation();
+    const canPlay = await checkCanPlay();
+    if (!canPlay) { alert('Your session has been ended. Please log in again.'); return; }
     try {
       const data = await tmdbService.getExternalIds(movie.id, movie.media_type || 'movie');
       if (data.imdb_id) navigate(`/watch/${data.imdb_id}`);

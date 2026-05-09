@@ -1,12 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import {
-  getAuth, signInAnonymously, signInWithPopup, GoogleAuthProvider,
+  getAuth, signInWithPopup, GoogleAuthProvider,
   onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   updatePassword, EmailAuthProvider, reauthenticateWithCredential, sendPasswordResetEmail,
 } from 'firebase/auth';
 import {
   getFirestore, doc, setDoc, getDoc, deleteDoc,
-  collection, getDocs, serverTimestamp, query, orderBy, limit, writeBatch,
+  collection, collectionGroup, getDocs, serverTimestamp, writeBatch, arrayUnion,
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -51,7 +51,6 @@ export function collectBrowserInfo() {
     if (/Tablet|iPad/i.test(ua)) return 'Tablet';
     return 'Desktop';
   };
-
   return {
     browser: getBrowser(),
     os: getOS(),
@@ -74,52 +73,142 @@ export function collectBrowserInfo() {
   };
 }
 
+// ── Device fingerprint ───────────────────────────────────────────────────────
+function getDeviceId() {
+  let id = localStorage.getItem('wif_device_id');
+  if (!id) {
+    id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('wif_device_id', id);
+  }
+  return id;
+}
+
+async function registerDevice(uid) {
+  const deviceId = getDeviceId();
+  const devicesRef = collection(db, 'users', uid, 'devices');
+  const snap = await getDocs(devicesRef);
+
+  // Check if this device already registered
+  const existing = snap.docs.find(d => d.id === deviceId);
+  if (existing) {
+    // Update last seen
+    await setDoc(doc(db, 'users', uid, 'devices', deviceId), {
+      lastSeen: serverTimestamp(),
+      browserInfo: collectBrowserInfo(),
+    }, { merge: true });
+    return { allowed: true, deviceCount: snap.size };
+  }
+
+  // New device — check limit
+  if (snap.size >= 2) {
+    return { allowed: false, deviceCount: snap.size };
+  }
+
+  // Register new device
+  await setDoc(doc(db, 'users', uid, 'devices', deviceId), {
+    deviceId,
+    createdAt: serverTimestamp(),
+    lastSeen: serverTimestamp(),
+    browserInfo: collectBrowserInfo(),
+  });
+  return { allowed: true, deviceCount: snap.size + 1 };
+}
+
+export async function getDevices(uid) {
+  const snap = await getDocs(collection(db, 'users', uid, 'devices'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.lastSeen?.seconds || 0) - (a.lastSeen?.seconds || 0));
+}
+
+export async function revokeDevice(uid, deviceId) {
+  await deleteDoc(doc(db, 'users', uid, 'devices', deviceId));
+}
+
+// ── Session revocation ────────────────────────────────────────────────────────
+async function ensureUserFirestoreRecord(user, provider) {
+  if (!user?.uid) return;
+
+  const displayName =
+    user.displayName ||
+    user.email?.split('@')[0] ||
+    'User';
+
+  const rootRef = doc(db, 'users', user.uid);
+  const profileRef = doc(db, 'users', user.uid, 'profile', 'data');
+  const payload = {
+    uid: user.uid,
+    email: user.email || '',
+    displayName,
+    provider: provider || (user.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email'),
+    lastSeen: serverTimestamp(),
+    browserInfo: collectBrowserInfo(),
+  };
+
+  await setDoc(rootRef, {
+    ...payload,
+    createdAt: serverTimestamp(),
+  }, { merge: true });
+
+  await setDoc(profileRef, {
+    ...payload,
+    consentGiven: true,
+    consentAt: serverTimestamp(),
+    moviesWatched: 0,
+  }, { merge: true });
+}
+// ── Helper: register UID in admin index ───────────────────────────────────────
+async function registerUidInIndex(uid) {
+  try {
+    await setDoc(doc(db, 'admin', 'userIndex'), { uids: arrayUnion(uid) }, { merge: true });
+    console.log('registerUidInIndex - saved:', uid);
+  } catch (e) {
+    console.error('registerUidInIndex error:', e);
+  }
+}
+
+async function registerUidsInIndex(uids) {
+  const uniqueUids = Array.from(new Set((uids || []).filter(Boolean)));
+  if (uniqueUids.length === 0) return;
+  try {
+    await setDoc(doc(db, 'admin', 'userIndex'), { uids: arrayUnion(...uniqueUids) }, { merge: true });
+    console.log('registerUidsInIndex - saved:', uniqueUids.length);
+  } catch (e) {
+    console.error('registerUidsInIndex error:', e);
+  }
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export async function registerWithEmail(email, password, displayName) {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const browserInfo = collectBrowserInfo();
-  await setDoc(doc(db, 'users', cred.user.uid, 'profile', 'data'), {
-    uid: cred.user.uid,
-    email,
-    displayName: displayName || email.split('@')[0],
-    createdAt: serverTimestamp(),
-    lastSeen: serverTimestamp(),
-    consentGiven: true,
-    consentAt: serverTimestamp(),
-    browserInfo,
-    moviesWatched: 0,
-    provider: 'email',
-  });
+  await ensureUserFirestoreRecord(
+    { ...cred.user, displayName: displayName || email.split('@')[0] },
+    'email'
+  );
+  await registerUidInIndex(cred.user.uid);
   return cred.user;
 }
 
 export async function loginWithEmail(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email, password);
-  // Update last seen + browser info
-  await setDoc(doc(db, 'users', cred.user.uid, 'profile', 'data'), {
-    lastSeen: serverTimestamp(),
-    browserInfo: collectBrowserInfo(),
-  }, { merge: true });
+  
+  // Check device limit
+  const deviceCheck = await registerDevice(cred.user.uid);
+  if (!deviceCheck.allowed) {
+    await auth.signOut();
+    throw new Error('Device limit reached. Max 2 devices allowed. Contact support to remove a device.');
+  }
+
+  await ensureUserFirestoreRecord(cred.user, 'email');
   return cred.user;
 }
 
 export async function loginWithGoogle() {
   const cred = await signInWithPopup(auth, googleProvider);
+  await ensureUserFirestoreRecord(cred.user, 'google');
   const profileRef = doc(db, 'users', cred.user.uid, 'profile', 'data');
   const snap = await getDoc(profileRef);
   if (!snap.exists()) {
-    await setDoc(profileRef, {
-      uid: cred.user.uid,
-      email: cred.user.email,
-      displayName: cred.user.displayName || cred.user.email,
-      createdAt: serverTimestamp(),
-      lastSeen: serverTimestamp(),
-      consentGiven: true,
-      consentAt: serverTimestamp(),
-      browserInfo: collectBrowserInfo(),
-      moviesWatched: 0,
-      provider: 'google',
-    });
+    await registerUidInIndex(cred.user.uid);
   } else {
     await setDoc(profileRef, { lastSeen: serverTimestamp(), browserInfo: collectBrowserInfo() }, { merge: true });
   }
@@ -146,8 +235,26 @@ export function onAuthChange(callback) {
 }
 
 export async function getUserProfile(uid) {
-  const snap = await getDoc(doc(db, 'users', uid, 'profile', 'data'));
-  return snap.exists() ? snap.data() : null;
+  const [rootSnap, profileSnap] = await Promise.all([
+    getDoc(doc(db, 'users', uid)),
+    getDoc(doc(db, 'users', uid, 'profile', 'data')),
+  ]);
+
+  const rootData = rootSnap.exists() ? rootSnap.data() : {};
+  const profileData = profileSnap.exists() ? profileSnap.data() : {};
+  const merged = { uid, ...rootData, ...profileData };
+
+  return Object.keys(merged).length > 1 ? merged : null;
+}
+
+export async function syncCurrentUserRecord(user) {
+  if (!user) return;
+  try {
+    await ensureUserFirestoreRecord(user, user.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email');
+    await registerUidInIndex(user.uid);
+  } catch (err) {
+    console.error('syncCurrentUserRecord error:', err);
+  }
 }
 
 // ── My List ───────────────────────────────────────────────────────────────────
@@ -207,7 +314,6 @@ export async function addToWatchHistory(uid, movie) {
   const histRef = collection(db, 'users', uid, 'watchHistory');
   const snap = await getDocs(histRef);
 
-  // If over 100, delete oldest
   if (snap.size >= 100) {
     const sorted = snap.docs.sort((a, b) =>
       (a.data().watchedAt?.seconds || 0) - (b.data().watchedAt?.seconds || 0)
@@ -228,9 +334,8 @@ export async function addToWatchHistory(uid, movie) {
     watchedAt: serverTimestamp(),
   });
 
-  // Increment counter
   await setDoc(doc(db, 'users', uid, 'profile', 'data'), {
-    moviesWatched: (snap.size + 1),
+    moviesWatched: snap.size + 1,
     lastSeen: serverTimestamp(),
   }, { merge: true });
 }
@@ -243,21 +348,129 @@ export async function getWatchHistory(uid) {
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export async function getAllUsers() {
-  // Get all user profile docs
-  const usersSnap = await getDocs(collection(db, 'users'));
-  const users = [];
-  for (const userDoc of usersSnap.docs) {
-    const profileSnap = await getDoc(doc(db, 'users', userDoc.id, 'profile', 'data'));
-    if (profileSnap.exists()) {
-      const myListSnap = await getDocs(collection(db, 'users', userDoc.id, 'myList'));
-      const historySnap = await getDocs(collection(db, 'users', userDoc.id, 'watchHistory'));
-      users.push({
-        ...profileSnap.data(),
-        uid: userDoc.id,
-        myListCount: myListSnap.size,
-        watchHistoryCount: historySnap.size,
+  try {
+    const [rootUsersSnap, profileSnaps, deviceSnaps, myListSnaps, historySnaps, continueSnaps, indexSnap] = await Promise.allSettled([
+      getDocs(collection(db, 'users')),
+      getDocs(collectionGroup(db, 'profile')),
+      getDocs(collectionGroup(db, 'devices')),
+      getDocs(collectionGroup(db, 'myList')),
+      getDocs(collectionGroup(db, 'watchHistory')),
+      getDocs(collectionGroup(db, 'continueWatching')),
+      getDoc(doc(db, 'admin', 'userIndex')),
+    ]);
+
+    const usersByUid = new Map();
+    const addUser = (uid, data = {}) => {
+      if (!uid) return;
+      usersByUid.set(uid, { ...(usersByUid.get(uid) || { uid }), ...data, uid });
+    };
+
+    if (rootUsersSnap.status === 'fulfilled') {
+      rootUsersSnap.value.docs.forEach((snap) => {
+        addUser(snap.id, snap.data());
       });
     }
+
+    if (profileSnaps.status === 'fulfilled') {
+      profileSnaps.value.docs.forEach((snap) => {
+        const uid = snap.ref.parent.parent?.id;
+        addUser(uid, snap.data());
+      });
+    }
+
+    const mergeCollectionGroup = (snapSet) => {
+      if (snapSet.status !== 'fulfilled') return;
+      snapSet.value.docs.forEach((snap) => {
+        const uid = snap.ref.parent.parent?.id;
+        if (!uid) return;
+        addUser(uid, {});
+      });
+    };
+
+    mergeCollectionGroup(deviceSnaps);
+    mergeCollectionGroup(myListSnaps);
+    mergeCollectionGroup(historySnaps);
+    mergeCollectionGroup(continueSnaps);
+
+    const uids = indexSnap.status === 'fulfilled' && indexSnap.value.exists()
+      ? (indexSnap.value.data().uids || [])
+      : [];
+
+    const missingUids = uids.filter(uid => !usersByUid.has(uid));
+    if (missingUids.length > 0) {
+      const missingUsers = await Promise.all(
+        missingUids.map(async (uid) => {
+          try {
+            const [rootSnap, profileSnap] = await Promise.all([
+              getDoc(doc(db, 'users', uid)),
+              getDoc(doc(db, 'users', uid, 'profile', 'data')),
+            ]);
+            const rootData = rootSnap.exists() ? rootSnap.data() : {};
+            const profileData = profileSnap.exists() ? profileSnap.data() : {};
+            const merged = { uid, ...rootData, ...profileData };
+            return Object.keys(merged).length > 1 ? merged : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      missingUsers.filter(Boolean).forEach((user) => {
+        usersByUid.set(user.uid, user);
+      });
+    }
+
+    const users = await Promise.all(
+      Array.from(usersByUid.values()).map(async (user) => {
+        try {
+          const [devicesSnap, myListSnap, historySnap, continueSnap] = await Promise.all([
+            getDocs(collection(db, 'users', user.uid, 'devices')),
+            getDocs(collection(db, 'users', user.uid, 'myList')),
+            getDocs(collection(db, 'users', user.uid, 'watchHistory')),
+            getDocs(collection(db, 'users', user.uid, 'continueWatching')),
+          ]);
+          return {
+            ...user,
+            devices: devicesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            myList: myListSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            history: historySnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            continueWatching: continueSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            myListCount: myListSnap.size,
+            watchHistoryCount: historySnap.size,
+            deviceCount: devicesSnap.size,
+            continueWatchingCount: continueSnap.size,
+          };
+        } catch {
+          return {
+            ...user,
+            devices: user.devices || [],
+            myList: user.myList || [],
+            history: user.history || [],
+            continueWatching: user.continueWatching || [],
+            myListCount: user.myListCount || 0,
+            watchHistoryCount: user.watchHistoryCount || 0,
+            deviceCount: user.deviceCount || 0,
+            continueWatchingCount: user.continueWatchingCount || 0,
+          };
+        }
+      })
+    );
+
+    console.log('getAllUsers source counts', {
+      rootUsers: rootUsersSnap.status === 'fulfilled' ? rootUsersSnap.value.size : 'blocked',
+      profileGroup: profileSnaps.status === 'fulfilled' ? profileSnaps.value.size : 'blocked',
+      devicesGroup: deviceSnaps.status === 'fulfilled' ? deviceSnaps.value.size : 'blocked',
+      myListGroup: myListSnaps.status === 'fulfilled' ? myListSnaps.value.size : 'blocked',
+      watchHistoryGroup: historySnaps.status === 'fulfilled' ? historySnaps.value.size : 'blocked',
+      continueWatchingGroup: continueSnaps.status === 'fulfilled' ? continueSnaps.value.size : 'blocked',
+      totalUsers: users.length,
+    });
+
+    await registerUidsInIndex(users.map(u => u.uid));
+
+    return users.sort((a, b) => (b.lastSeen?.seconds || 0) - (a.lastSeen?.seconds || 0));
+  } catch (err) {
+    console.error('getAllUsers error:', err);
+    return [];
   }
-  return users.sort((a, b) => (b.lastSeen?.seconds || 0) - (a.lastSeen?.seconds || 0));
 }

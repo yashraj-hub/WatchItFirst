@@ -94,6 +94,8 @@ const Profile = () => {
       await setDoc(doc(db, 'users', user.uid, 'profile', 'data'), { avatar: avatarUrl }, { merge: true });
       setSelectedAvatar(avatarUrl);
       setProfile(p => ({ ...p, avatar: avatarUrl }));
+      // Notify navbar to update avatar instantly
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: avatarUrl }));
       setShowAvatarPicker(false);
     } catch {}
     setSavingAvatar(false);

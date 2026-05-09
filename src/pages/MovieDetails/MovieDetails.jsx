@@ -34,9 +34,19 @@ const MovieDetails = () => {
   const { id } = useParams();
   const [state, dispatch] = useReducer(detailsReducer, initialDetailsState);
   const [saved, setSaved] = useState(false);
-  const { user } = useAuth();
+  const { user, checkCanPlay } = useAuth();
   const navigate = useNavigate();
   const { movie, loading, showTrailer } = state;
+  const isUpcoming = (() => {
+    const releaseDate = movie?.release_date;
+    if (!releaseDate) return false;
+    if (movie?.status?.toLowerCase() === 'coming soon' || movie?.status?.toLowerCase() === 'planned') return true;
+    const release = new Date(`${releaseDate}T00:00:00`);
+    if (Number.isNaN(release.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return release > today;
+  })();
 
   useEffect(() => {
     if (!user) return;
@@ -86,8 +96,10 @@ const MovieDetails = () => {
     } : undefined,
   });
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     if (movie?.external_ids?.imdb_id) {
+      const canPlay = await checkCanPlay();
+      if (!canPlay) { alert('Your session has been ended. Please log in again.'); return; }
       if (user) {
         saveContinueWatching(user.uid, {
           id: movie.id,
@@ -184,9 +196,18 @@ const MovieDetails = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-8">
           <div className="flex items-center gap-4 mb-4">
             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white">{movie?.title}</h1>
-            <button onClick={handlePlay} className="flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl">
-              <Play className="w-5 h-5 fill-black text-black ml-0.5" />
-            </button>
+            {isUpcoming ? (
+              <div
+                className="flex-shrink-0 h-12 px-4 rounded-full bg-white/5 border border-white/10 text-gray-500 flex items-center justify-center text-[10px] font-black uppercase tracking-[0.2em]"
+                title="This title is not available to watch yet"
+              >
+                Coming Soon
+              </div>
+            ) : (
+              <button onClick={handlePlay} className="flex-shrink-0 w-12 h-12 rounded-full bg-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl">
+                <Play className="w-5 h-5 fill-black text-black ml-0.5" />
+              </button>
+            )}
             <button
               onClick={handleBookmark}
               className={`flex-shrink-0 w-12 h-12 rounded-full border flex items-center justify-center hover:scale-110 transition-transform active:scale-95 ${

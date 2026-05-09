@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   base: '/',
+  define: {
+    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(Date.now().toString()),
+  },
   plugins: [
     react(),
     tailwindcss(),

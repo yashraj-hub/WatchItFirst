@@ -7,6 +7,16 @@ import store from './store'
 import { AuthProvider } from './context/AuthContext'
 import './index.css'
 
+// Auto-reload when new deploy is detected
+const BUILD_TIME = import.meta.env.VITE_BUILD_TIME || 'dev';
+const stored = localStorage.getItem('app_build_time');
+if (stored && stored !== BUILD_TIME) {
+  localStorage.setItem('app_build_time', BUILD_TIME);
+  window.location.reload();
+} else {
+  localStorage.setItem('app_build_time', BUILD_TIME);
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Provider store={store}>
