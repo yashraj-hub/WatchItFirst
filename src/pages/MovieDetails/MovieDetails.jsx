@@ -112,6 +112,9 @@ const MovieDetails = () => {
           vote_average: movie.vote_average,
           media_type: 'movie',
           imdb_id: movie.external_ids.imdb_id,
+          original_language: movie.original_language || '',
+          genre_ids: movie.genres?.map(g => g.id) || [],
+          zone: movie.original_language === 'hi' ? 'bollywood' : (movie.genres?.some(g => g.id === 16) ? 'animation' : 'default'),
         });
       }
       navigate(`/watch/${movie.external_ids.imdb_id}`);

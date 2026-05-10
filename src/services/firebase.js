@@ -287,6 +287,9 @@ export async function saveContinueWatching(uid, movie) {
     vote_average: movie.vote_average || 0,
     media_type: movie.media_type || 'movie',
     imdb_id: movie.imdb_id || '',
+    original_language: movie.original_language || '',
+    genre_ids: movie.genre_ids || [],
+    zone: movie.zone || 'default',
     watchedAt: serverTimestamp(),
   });
 }

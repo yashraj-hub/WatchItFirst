@@ -5,8 +5,11 @@ import MainLayout from '../../layouts/MainLayout';
 import GenreExplorerSection from '../../components/GenreExplorerSection';
 import HeroSection from '../../components/HeroSection';
 import Top10Section from '../../components/Top10Section';
+import ContinueWatching from '../../components/ContinueWatching';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSEO } from '../../hooks/useSEO';
+import { getContinueWatching } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const Animation = () => {
   useSEO({
@@ -21,6 +24,13 @@ const Animation = () => {
   const [pageSections, setPageSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  const [continueWatching, setContinueWatching] = useState([]);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    getContinueWatching(user.uid).then(setContinueWatching);
+  }, [user]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -57,6 +67,10 @@ const Animation = () => {
                 className="relative z-20 pt-12 pb-10 -mt-40"
               >
                 <Top10Section title="Top Trending Animation" movies={trending} />
+                <ContinueWatching
+                  items={continueWatching}
+                  onRemove={(id) => setContinueWatching(prev => prev.filter(m => String(m.id) !== String(id)))}
+                />
                 <div className="relative mt-8 md:mt-12">
                   {pageSections.filter(s => s.isStudio).map((section) => (
                     <GenreExplorerSection key={section.id} section={section} />
