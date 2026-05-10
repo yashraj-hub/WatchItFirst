@@ -29,7 +29,7 @@ const wrap = (Component) => (
 );
 
 export const router = createBrowserRouter([
-  { path: '/',                element: wrap(Home),            errorElement: <ErrorPage /> },
+  { path: '/',                element: wrap(Bollywood),       errorElement: <ErrorPage /> },
   { path: '/watch/:imdbId',   element: wrap(Watch),           errorElement: <ErrorPage /> },
   { path: '/details/:id',     element: wrap(MovieDetails),    errorElement: <ErrorPage /> },
   { path: '/search',          element: wrap(Search),          errorElement: <ErrorPage /> },
@@ -43,5 +43,6 @@ export const router = createBrowserRouter([
   { path: '/admin',           element: wrap(Admin),           errorElement: <ErrorPage /> },
   { path: '/profile',         element: wrap(Profile),         errorElement: <ErrorPage /> },
   { path: '/trending',        element: wrap(Home),            errorElement: <ErrorPage /> },
+  { path: '/hollywood',       element: wrap(Home),            errorElement: <ErrorPage /> },
   { path: '*',                element: <ErrorPage /> },
 ]);

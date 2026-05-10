@@ -745,6 +745,87 @@ export const tmdbService = {
   getMovieImages: (id) =>
     fetchFromTMDB(`/movie/${id}/images`, { include_image_language: 'en,null' }),
 
+  getProductionHouseCatalog: async () => {
+    return runSingletonSyncWithFirestore('production_house_catalog_v1', async () => {
+      const sources = [
+        {
+          key: 'hollywood',
+          label: 'Hollywood',
+          studios: [
+            { id: 174, name: 'Warner Bros.' },
+            { id: 429, name: 'DC Studios' },
+            { id: 33, name: 'Universal Pictures' },
+            { id: 4, name: 'Paramount' },
+            { id: 25, name: '20th Century Studios' },
+            { id: 5, name: 'Columbia Pictures' },
+            { id: 420, name: 'Marvel Studios' },
+            { id: 7505, name: 'A24' },
+            { id: 3172, name: 'Legendary Pictures' },
+            { id: 508, name: 'Regency Enterprises' },
+            { id: 9996, name: 'Amblin Entertainment' },
+            { id: 12, name: 'New Line Cinema' },
+            { id: 1632, name: 'Lionsgate' },
+            { id: 1, name: 'Lucasfilm' },
+            { id: 2, name: 'Walt Disney Animation' },
+            { id: 7521, name: 'Netflix' },
+            { id: 11461, name: 'Amazon Studios' },
+          ],
+        },
+        {
+          key: 'bollywood',
+          label: 'Bollywood',
+          studios: [
+            { id: 1569, name: 'Yash Raj Films' },
+            { id: 19146, name: 'Dharma Productions' },
+            { id: 2343, name: 'Red Chillies Entertainment' },
+            { id: 3522, name: 'T-Series' },
+            { id: 86699, name: 'Maddock Films' },
+            { id: 6808, name: 'Viacom18 Studios' },
+          ],
+        },
+        {
+          key: 'animation',
+          label: 'Animation',
+          studios: [
+            { id: 3, name: 'Pixar' },
+            { id: 6125, name: 'Disney' },
+            { id: 33, name: 'Studio Ghibli' },
+            { id: 521, name: 'DreamWorks' },
+            { id: 6704, name: 'Illumination' },
+            { id: 9993, name: 'Nickelodeon' },
+          ],
+        },
+      ];
+
+      const houses = [];
+
+      for (const source of sources) {
+        const resolved = await Promise.all(
+          source.studios.map(async (studio) => {
+            try {
+              const companyInfo = await tmdbService.getCompanyDetails(studio.id);
+              return companyInfo?.logo_path
+                ? {
+                    ...studio,
+                    source: source.key,
+                    sourceLabel: source.label,
+                    logo: companyInfo.logo_path,
+                    isStudio: true,
+                  }
+                : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        houses.push(...resolved.filter(Boolean));
+      }
+
+      return { houses };
+    });
+  },
+
   getFullSyncData: async (genreIds) => {
     return runSingletonSyncWithFirestore('master_sync_data_v3', async () => {
       const currentYear = new Date().getFullYear();

@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 
 const BASE_URL = 'https://watchitfirst.onrender.com';
 const DEFAULT = {
-  title: 'WatchItFirst — Stream Movies & TV Shows',
-  description: 'WatchItFirst is your ultimate destination to discover, explore and stream movies, TV shows, Bollywood hits and animated classics. Browse by franchise, genre, studio and more.',
+  title: 'MoviesBox — Stream Movies & TV Shows',
+  description: 'MoviesBox is your ultimate destination to discover, explore and stream movies, TV shows, Bollywood hits and animated classics.',
   image: `${BASE_URL}/og-image.jpg`,
   url: BASE_URL,
 };
@@ -43,7 +43,7 @@ function setJsonLd(data) {
 
 export function useSEO({ title, description, image, url, jsonLd } = {}) {
   useEffect(() => {
-    const t = title ? `${title} | WatchItFirst` : DEFAULT.title;
+    const t = title ? `${title} | MoviesBox` : DEFAULT.title;
     const d = description || DEFAULT.description;
     const img = image || DEFAULT.image;
     const u = url ? `${BASE_URL}${url}` : DEFAULT.url;

@@ -134,21 +134,21 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={() => setShowAvatarPicker(true)}
-                  className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/20 hover:border-red-500 transition-all"
+                  className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/20 hover:border-yellow-400 transition-all"
                 >
                   {selectedAvatar ? (
                     <img src={selectedAvatar} alt="avatar" className="w-full h-full object-cover bg-white/10" />
                   ) : (
-                    <div className="w-full h-full bg-red-600/20 flex items-center justify-center">
-                      <span className="text-xl font-black text-red-400">
+                    <div className="w-full h-full bg-yellow-400/20 flex items-center justify-center">
+                      <span className="text-xl font-black text-yellow-400">
                         {(profile?.displayName || user?.email || '?')[0].toUpperCase()}
                       </span>
                     </div>
                   )}
                 </button>
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center cursor-pointer border-2 border-[#050505]"
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center cursor-pointer border-2 border-[#050505]"
                   onClick={() => setShowAvatarPicker(true)}>
-                  <span className="text-white text-[8px] font-black">✎</span>
+                  <span className="text-black text-[8px] font-black">✎</span>
                 </div>
               </div>
               <div>
@@ -181,7 +181,7 @@ const Profile = () => {
                   onClick={e => e.stopPropagation()}
                   className="bg-[#111] border border-white/10 rounded-3xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
                 >
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-5">Choose Avatar</h2>
+                  <h2 className="text-lg font-black uppercase tracking-tight text-yellow-400 mb-5">Choose Avatar</h2>
                   <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
                     {AVATAR_STYLES.map(style => {
                       const url = getAvatarUrl(style, seed);
@@ -192,14 +192,14 @@ const Profile = () => {
                           onClick={() => handleSaveAvatar(url)}
                           disabled={savingAvatar}
                           className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105 ${
-                            isSelected ? 'border-red-500 shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'border-white/10 hover:border-white/30'
+                            isSelected ? 'border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 'border-white/10 hover:border-white/30'
                           } bg-white/5`}
                           title={style.label}
                         >
                           <img src={url} alt={style.label} className="w-full h-full object-contain p-1" />
                           {isSelected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center">
-                              <Check className="w-2.5 h-2.5 text-white" />
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5 text-black" />
                             </div>
                           )}
                         </button>
@@ -217,8 +217,8 @@ const Profile = () => {
             {/* Change Password */}
             {profile?.provider === 'email' && (
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-5 flex items-center gap-2">
-                  <Lock className="w-3 h-3" /> Change Password
+                <h2 className="text-lg font-black uppercase tracking-tight text-yellow-400 mb-5 flex items-center gap-2">
+                  <Lock className="w-4 h-4" /> Change Password
                 </h2>
                 <form onSubmit={handleChangePassword} className="space-y-4">
                   <div className="relative">
@@ -254,8 +254,8 @@ const Profile = () => {
 
             {/* Stats */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-5 flex items-center gap-2">
-                <User className="w-3 h-3" /> Account Info
+              <h2 className="text-lg font-black uppercase tracking-tight text-yellow-400 mb-5 flex items-center gap-2">
+                <User className="w-4 h-4" /> Account Info
               </h2>
               <div className="space-y-3">
                 {[
@@ -276,8 +276,8 @@ const Profile = () => {
           {/* Watch History */}
           {history.length > 0 && (
             <div className="mt-10">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-5 flex items-center gap-2">
-                <Clock className="w-3 h-3" /> Watch History ({history.length})
+              <h2 className="text-lg font-black uppercase tracking-tight text-yellow-400 mb-5 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Watch History ({history.length})
               </h2>
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                 {history.map((movie, i) => (

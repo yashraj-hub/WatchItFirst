@@ -12,15 +12,16 @@ import { useSEO } from '../../hooks/useSEO';
 const initialDetailsState = {
   movie: null,
   loading: true,
+  transitioning: false,
   showTrailer: false,
 };
 
 function detailsReducer(state, action) {
   switch (action.type) {
     case 'start':
-      return { ...state, loading: true, showTrailer: false };
+      return { ...state, transitioning: true, showTrailer: false };
     case 'loaded':
-      return { ...state, movie: action.movie };
+      return { ...state, movie: action.movie, transitioning: false };
     case 'showTrailer':
       return { ...state, showTrailer: true };
     case 'loadedComplete':
@@ -36,7 +37,7 @@ const MovieDetails = () => {
   const [saved, setSaved] = useState(false);
   const { user, checkCanPlay } = useAuth();
   const navigate = useNavigate();
-  const { movie, loading, showTrailer } = state;
+  const { movie, loading, transitioning, showTrailer } = state;
   const isUpcoming = (() => {
     const releaseDate = movie?.release_date;
     if (!releaseDate) return false;
@@ -55,10 +56,12 @@ const MovieDetails = () => {
 
   useEffect(() => {
     dispatch({ type: 'start' });
-    window.scrollTo(0, 0);
 
     tmdbService.getMovieDetails(id)
-      .then(data => dispatch({ type: 'loaded', movie: data }))
+      .then(data => {
+        dispatch({ type: 'loaded', movie: data });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
       .catch(err => console.error('Failed to fetch details:', err))
       .finally(() => dispatch({ type: 'loadedComplete' }));
 
@@ -135,7 +138,7 @@ const MovieDetails = () => {
     }
   };
 
-  if (loading) return (
+  if (loading && !movie) return (
     <div className="h-screen bg-black flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -149,6 +152,12 @@ const MovieDetails = () => {
 
   return (
     <MainLayout>
+      <motion.div
+        key={id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: transitioning ? 0.4 : 1 }}
+        transition={{ duration: 0.3 }}
+      >
       <div className="relative h-[50vh] overflow-hidden">
         <img src={`${TMDB_CONFIG.original}${movie?.poster_path}`} className="absolute inset-0 w-full h-full object-cover" alt="" />
 
@@ -211,7 +220,7 @@ const MovieDetails = () => {
             <button
               onClick={handleBookmark}
               className={`flex-shrink-0 w-12 h-12 rounded-full border flex items-center justify-center hover:scale-110 transition-transform active:scale-95 ${
-                saved ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'bg-white/5 border-white/10 text-gray-400 hover:border-red-500/50'
+                saved ? 'bg-yellow-400 border-yellow-400 text-black shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 'bg-white/5 border-white/10 text-gray-400 hover:border-yellow-400/50'
               }`}
               title={saved ? 'Remove from My List' : 'Add to My List'}
             >
@@ -220,16 +229,16 @@ const MovieDetails = () => {
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-bold text-gray-400">
             <span className="flex items-center gap-1.5 text-yellow-400"><Star className="w-4 h-4 fill-yellow-400" />{movie?.vote_average?.toFixed(1)}</span>
-            <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-red-500" />{movie?.release_date?.split('-')[0]}</span>
-            <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-red-500" />{movie?.runtime} min</span>
-            <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-red-500" />{movie?.spoken_languages?.[0]?.english_name || 'N/A'}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-yellow-400" />{movie?.release_date?.split('-')[0]}</span>
+            <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-yellow-400" />{movie?.runtime} min</span>
+            <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-yellow-400" />{movie?.spoken_languages?.[0]?.english_name || 'N/A'}</span>
             <span className="px-2 py-0.5 border border-white/10 text-gray-400 text-xs uppercase tracking-widest rounded">{movie?.status}</span>
           </div>
           <p className="mt-3 text-xs uppercase tracking-widest text-gray-600 font-bold">{movie?.genres?.map(g => g.name).join(' · ')}</p>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-3 flex items-center gap-2">Synopsis <ChevronRight className="w-3 h-3" /></h2>
+          <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-yellow-400 mb-3 flex items-center gap-2">Synopsis <ChevronRight className="w-4 h-4" /></h2>
           <p className="text-base md:text-lg text-gray-300 leading-relaxed max-w-4xl">{movie?.overview}</p>
         </motion.div>
 
@@ -249,7 +258,7 @@ const MovieDetails = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-6 flex items-center gap-2">Top Cast <Users className="w-3 h-3" /></h2>
+          <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-yellow-400 mb-6 flex items-center gap-2">Top Cast <Users className="w-4 h-4" /></h2>
           <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide">
             {topCast?.map(person => (
               <button key={person.id} type="button" onClick={() => navigate(`/movies?personId=${person.id}&personName=${encodeURIComponent(person.name)}`)} className="flex-shrink-0 w-24 group text-center focus:outline-none">
@@ -265,7 +274,7 @@ const MovieDetails = () => {
 
         {productionCompanies.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-6">Production</h2>
+            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-yellow-400 mb-6">Production</h2>
             <div className="flex flex-wrap items-center gap-8">
               {productionCompanies.map(company => (
                 <div key={company.id} className="group">
@@ -291,13 +300,14 @@ const MovieDetails = () => {
 
         {recommendations.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 mb-8">More Like This</h2>
+            <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight text-yellow-400 mb-8">More Like This</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4">
               {recommendations.map(m => <MovieCard key={m.id} movie={m} />)}
             </div>
           </motion.div>
         )}
       </div>
+      </motion.div>
     </MainLayout>
   );
 };

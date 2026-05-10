@@ -43,8 +43,8 @@ const MyList = () => {
       <div className="min-h-screen bg-[#050505] px-4 md:px-12 pt-28 pb-16">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4 mb-10">
-            <div className="p-3 bg-red-600 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.4)]">
-              <Bookmark className="w-5 h-5 text-white" />
+            <div className="p-3 bg-yellow-400 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.4)]">
+              <Bookmark className="w-5 h-5 text-black" />
             </div>
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tighter text-white">My List</h1>
@@ -82,7 +82,7 @@ const MyList = () => {
                       onClick={() => navigate(`/details/${movie.id}`)}
                       className="group cursor-pointer relative aspect-[2/3]"
                     >
-                      <div className="rounded-2xl overflow-hidden w-full h-full bg-white/5 border border-white/10 group-hover:border-red-500/50 transition-all duration-300 group-hover:scale-[1.03]">
+                      <div className="rounded-2xl overflow-hidden w-full h-full bg-white/5 border border-white/10 group-hover:border-yellow-400/50 transition-all duration-300 group-hover:scale-[1.03]">
                         <img
                           src={movie.poster_path ? `${TMDB_CONFIG.w500}${movie.poster_path}` : '/placeholder.svg'}
                           alt={movie.title}

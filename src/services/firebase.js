@@ -83,7 +83,7 @@ function getDeviceId() {
   return id;
 }
 
-async function registerDevice(uid) {
+export async function registerDevice(uid) {
   const deviceId = getDeviceId();
   const devicesRef = collection(db, 'users', uid, 'devices');
   const snap = await getDocs(devicesRef);
@@ -180,6 +180,7 @@ export async function registerWithEmail(email, password, displayName) {
     'email'
   );
   await registerUidInIndex(cred.user.uid);
+  await setNewUserNotification();
   return cred.user;
 }
 
@@ -193,11 +194,13 @@ export async function loginWithEmail(email, password) {
 
 export async function loginWithGoogle() {
   const cred = await signInWithPopup(auth, googleProvider);
+  await registerDevice(cred.user.uid);
   await ensureUserFirestoreRecord(cred.user, 'google');
   const profileRef = doc(db, 'users', cred.user.uid, 'profile', 'data');
   const snap = await getDoc(profileRef);
   if (!snap.exists()) {
     await registerUidInIndex(cred.user.uid);
+    await setNewUserNotification();
   } else {
     await setDoc(profileRef, { lastSeen: serverTimestamp(), browserInfo: collectBrowserInfo() }, { merge: true });
   }
@@ -239,6 +242,7 @@ export async function getUserProfile(uid) {
 export async function syncCurrentUserRecord(user) {
   if (!user) return;
   try {
+    await registerDevice(user.uid);
     await ensureUserFirestoreRecord(user, user.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'email');
     await registerUidInIndex(user.uid);
   } catch (err) {
@@ -335,7 +339,25 @@ export async function getWatchHistory(uid) {
     .sort((a, b) => (b.watchedAt?.seconds || 0) - (a.watchedAt?.seconds || 0));
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
+// ── Admin notification ───────────────────────────────────────────────────────
+export async function setNewUserNotification() {
+  try {
+    await setDoc(doc(db, 'admin', 'notifications'), { newUser: true }, { merge: true });
+  } catch {}
+}
+
+export async function getNewUserNotification() {
+  try {
+    const snap = await getDoc(doc(db, 'admin', 'notifications'));
+    return snap.exists() ? snap.data().newUser === true : false;
+  } catch { return false; }
+}
+
+export async function clearNewUserNotification() {
+  try {
+    await setDoc(doc(db, 'admin', 'notifications'), { newUser: false }, { merge: true });
+  } catch {}
+}
 export async function getAllUsers() {
   try {
     const [rootUsersSnap, profileSnaps, deviceSnaps, myListSnaps, historySnaps, continueSnaps, indexSnap] = await Promise.allSettled([

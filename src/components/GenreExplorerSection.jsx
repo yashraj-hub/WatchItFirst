@@ -105,7 +105,7 @@ const GenreExplorerSection = ({ section, isBollywood = false }) => {
             )}
           </div>
           {section.total && (
-            <span className="text-sm font-bold text-gray-500 uppercase tracking-[0.4em] opacity-40 group-hover/title:opacity-100 transition-opacity">
+            <span className="text-sm font-bold text-yellow-400 uppercase tracking-[0.4em] opacity-40 group-hover/title:opacity-100 transition-opacity">
               {section.total.toLocaleString()} Titles <ChevronRight className="inline-block w-4 h-4 ml-1 mb-0.5" />
             </span>
           )}

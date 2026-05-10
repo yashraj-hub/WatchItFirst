@@ -1,46 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TMDB_CONFIG, tmdbService } from '../services/tmdb';
 import MainLayout from '../layouts/MainLayout';
 import MovieCard from './MovieCard';
+import { useNavigate } from 'react-router-dom';
 
 const StudioPage = ({ title, companyId, logoSrc, logoAlt, discoveryParams = {} }) => {
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
-  const [bgIndex, setBgIndex] = useState(0);
-  const [bgMovies, setBgMovies] = useState([]);
   const [companyLogo, setCompanyLogo] = useState(null);
-  const [scrolledDown, setScrolledDown] = useState(false);
   const observerTarget = useRef(null);
+  const navigate = useNavigate();
 
   const fetchMovies = async (pageNum) => {
     try {
       if (pageNum === 1) {
         try {
           const companyInfo = await tmdbService.getCompanyDetails(companyId);
-          if (companyInfo?.logo_path) {
-            setCompanyLogo(companyInfo.logo_path);
-          }
-        } catch {
-          // Logo is optional; we keep the page usable without it.
-        }
+          if (companyInfo?.logo_path) setCompanyLogo(companyInfo.logo_path);
+        } catch {}
       }
-
       const data = await tmdbService.getMoviesByCompany(companyId, pageNum, discoveryParams);
-
-      if (!data.results || data.results.length === 0) {
-        setHasMore(false);
-        return;
-      }
-
-      setMovies((prev) => (pageNum === 1 ? data.results : [...prev, ...data.results]));
-
-      if (pageNum === 1) {
-        setBgMovies(data.results.filter((movie) => movie.backdrop_path).slice(0, 10));
-      }
+      if (!data.results || data.results.length === 0) { setHasMore(false); return; }
+      setMovies(prev => pageNum === 1 ? data.results : [...prev, ...data.results]);
     } catch (err) {
       console.error(`Failed to fetch ${title} movies:`, err);
     } finally {
@@ -49,131 +34,93 @@ const StudioPage = ({ title, companyId, logoSrc, logoAlt, discoveryParams = {} }
   };
 
   useEffect(() => {
-    setMovies([]);
-    setPage(1);
-    setHasMore(true);
-    setLoading(true);
-    setCompanyLogo(null);
+    setMovies([]); setPage(1); setHasMore(true); setLoading(true); setCompanyLogo(null);
     fetchMovies(1);
     window.scrollTo(0, 0);
-  }, [companyId, discoveryParams]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolledDown(window.scrollY > 80);
-    };
-
-    handleScroll();
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    if (bgMovies.length === 0) return;
-    const interval = setInterval(() => {
-      setBgIndex((prev) => (prev + 1) % bgMovies.length);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [bgMovies]);
+  }, [companyId]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         if (entries[0].isIntersecting && hasMore && !loading) {
-          setPage((prev) => {
-            const next = prev + 1;
-            fetchMovies(next);
-            return next;
-          });
+          setPage(prev => { const next = prev + 1; fetchMovies(next); return next; });
         }
       },
       { threshold: 0.1, rootMargin: '100px' }
     );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
+    if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
   }, [hasMore, loading, companyId]);
 
-  const resolvedLogo =
-    logoSrc ||
-    (companyLogo ? `${TMDB_CONFIG.original}${companyLogo}` : null);
+  const resolvedLogo = logoSrc || (companyLogo ? `${TMDB_CONFIG.original}${companyLogo}` : null);
 
   return (
     <MainLayout>
-      <div className="relative min-h-screen bg-[#050505] overflow-hidden">
-        <div className="fixed inset-0 z-0">
-          <AnimatePresence mode="wait">
-            {bgMovies.length > 0 && (
-              <motion.div
-                key={bgMovies[bgIndex].id}
-                initial={{ opacity: 0, scale: 1.1 }}
-                animate={{ opacity: scrolledDown ? 0.28 : 0.38, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2 }}
-                className="absolute inset-0"
-              >
-                <img
-                  src={`${TMDB_CONFIG.original}${bgMovies[bgIndex].backdrop_path}`}
-                  className="w-full h-full object-cover"
-                  alt=""
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <div
-            className={`absolute inset-0 bg-gradient-to-t transition-opacity duration-700 ${
-              scrolledDown
-                ? 'from-[#050505]/92 via-[#050505]/55 to-transparent opacity-100'
-                : 'from-[#050505]/80 via-[#050505]/28 to-transparent opacity-100'
-            }`}
-          />
-          <div className={`absolute inset-0 transition-colors duration-700 ${scrolledDown ? 'bg-black/16' : 'bg-black/8'}`} />
-        </div>
+      <div className="min-h-screen bg-[#050505]">
 
-        <div className="relative z-10 pt-32 pb-24 px-4 md:px-16 lg:px-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-24 flex flex-col items-center text-center"
+        {/* Hero header — clean dark, no bg bleed */}
+        <div className="relative pt-24 pb-12 px-4 md:px-16 border-b border-white/5">
+          {/* Back btn */}
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-20 left-4 md:left-8 w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all"
           >
-            {resolvedLogo ? (
-              <div className="flex flex-col items-center gap-6">
-                <motion.img
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
+            <ArrowLeft className="w-4 h-4 text-gray-400" />
+          </button>
+
+          <div className="flex flex-col md:flex-row items-center md:items-end gap-8 max-w-7xl mx-auto">
+            {/* Logo box — fixed size, dark bg always */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex-shrink-0 w-48 h-28 md:w-64 md:h-36 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center p-6"
+            >
+              {resolvedLogo ? (
+                <img
                   src={resolvedLogo}
                   alt={logoAlt || title}
-                  className="h-24 md:h-36 lg:h-48 w-auto object-contain"
+                  className="max-h-16 max-w-[160px] w-auto h-auto object-contain"
                 />
-                <h1 className="text-2xl md:text-3xl font-black uppercase tracking-[0.6em] text-white opacity-80 mt-2">
-                  {title}
-                </h1>
-              </div>
-            ) : (
-              <h1 className="text-6xl md:text-9xl font-black uppercase tracking-tighter italic text-white leading-none">
+              ) : (
+                <span className="text-2xl font-black uppercase tracking-tighter text-white">{title}</span>
+              )}
+            </motion.div>
+
+            {/* Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex flex-col gap-2 text-center md:text-left"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-red-500">Production House</p>
+              <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white leading-none">
                 {title}
               </h1>
-            )}
-          </motion.div>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                {loading ? 'Loading...' : `${movies.length}+ Movies`}
+              </p>
+            </motion.div>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-12">
+        {/* Movie grid */}
+        <div className="px-4 md:px-16 py-10 max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 md:gap-6">
             {movies.map((movie, index) => (
               <motion.div
                 key={`${movie.id}-${index}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: (index % 10) * 0.05 }}
-                className="space-y-4"
+                transition={{ delay: (index % 12) * 0.04 }}
+                className="space-y-3"
               >
                 <MovieCard movie={movie} />
-                <div className="px-1">
-                  <h3 className="text-sm md:text-base font-black truncate uppercase tracking-tight text-white leading-tight">
+                <div>
+                  <h3 className="text-xs font-black truncate uppercase tracking-tight text-white leading-tight">
                     {movie.title || movie.name}
                   </h3>
-                  <p className="text-xs font-bold text-gray-500 mt-1">
+                  <p className="text-[10px] font-bold text-gray-600 mt-0.5">
                     {(movie.release_date || movie.first_air_date)?.split('-')[0]}
                   </p>
                 </div>
@@ -181,22 +128,15 @@ const StudioPage = ({ title, companyId, logoSrc, logoAlt, discoveryParams = {} }
             ))}
           </div>
 
-          <div
-            ref={observerTarget}
-            className="h-20 mt-12 flex items-center justify-center"
-          >
+          <div ref={observerTarget} className="h-20 mt-12 flex items-center justify-center">
             {loading && (
               <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-10 h-10 animate-spin text-red-600" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-red-600/60">
-                  Syncing More Titles
-                </span>
+                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-600/60">Loading More</span>
               </div>
             )}
             {!hasMore && movies.length > 0 && (
-              <span className="text-xs font-black uppercase tracking-[0.3em] text-gray-600">
-                End of Discovery
-              </span>
+              <span className="text-xs font-black uppercase tracking-[0.3em] text-gray-600">End of Collection</span>
             )}
           </div>
         </div>

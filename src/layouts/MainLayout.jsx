@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ChevronDown, Search, Video, Sparkles, Menu, X, Star, Film, Compass, Zap, Bookmark, Clock, Shield, LogOut } from 'lucide-react';
+import { ChevronDown, Search, Sparkles, Menu, X, Star, Compass, Zap, Bookmark, Shield, LogOut } from 'lucide-react';
 import { fetchCategories, fetchPageGenres, selectPageGenres } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 import DiscoveryAnimation from '../components/DiscoveryAnimation';
+import AnimatedLogo from '../components/AnimatedLogo';
 import { tmdbService } from '../services/tmdb';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile } from '../services/firebase';
+import { getUserProfile, getNewUserNotification } from '../services/firebase';
 
 const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -32,13 +33,31 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
   const queryParams = new URLSearchParams(location.search);
   const pageTypeParam = queryParams.get('pageType');
 
-  const isBollywoodPage = location.pathname.startsWith('/bollywood') || pageTypeParam === 'bollywood';
+  const isBollywoodPage = location.pathname === '/' || location.pathname.startsWith('/bollywood') || pageTypeParam === 'bollywood';
   const isAnimationPage = location.pathname.startsWith('/animation') || pageTypeParam === 'animation';
 
   const isRecommendationsPage = location.pathname === '/recommendations';
 
   const pageType = isBollywoodPage ? 'bollywood' : isAnimationPage ? 'animation' : 'default';
-  const [selectedZone, setSelectedZone] = useState(pageType);
+
+  const getInitialZone = () => {
+    if (isBollywoodPage) return 'bollywood';
+    if (isAnimationPage) return 'animation';
+    if (location.pathname.startsWith('/hollywood') || location.pathname.startsWith('/trending')) return 'default';
+    return localStorage.getItem('selectedZone') || 'bollywood';
+  };
+
+  const [selectedZone, setSelectedZone] = useState(getInitialZone);
+
+  useEffect(() => {
+    if (isBollywoodPage) setSelectedZone('bollywood');
+    else if (isAnimationPage) setSelectedZone('animation');
+    else if (location.pathname.startsWith('/hollywood') || location.pathname.startsWith('/trending')) setSelectedZone('default');
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedZone', selectedZone);
+  }, [selectedZone]);
   const englishGenres = useMemo(() => genreSections.filter(s => !s.isStudio), [genreSections]);
   const categories = (selectedZone === 'bollywood' && !isRecommendationsPage) ? bollywoodGenres : (selectedZone === 'animation' && !isRecommendationsPage) ? animationGenres : englishGenres;
 
@@ -143,9 +162,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
       >
         {/* Logo */}
         <div className="flex-shrink-0">
-          <Link to="/" className="text-xl md:text-2xl font-black tracking-tighter text-white uppercase hover:text-red-600 transition-colors duration-300">
-            WatchItFirst
-          </Link>
+          <AnimatedLogo size="sm" className="opacity-90 hover:opacity-100 transition-opacity duration-300" />
         </div>
 
         {/* Desktop nav - Segmented Switcher & Categories */}
@@ -154,7 +171,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
           <div className="relative flex bg-white/5 border border-white/10 rounded-full p-1 h-10 items-center backdrop-blur-md">
             {/* Sliding Background - Red Pill covering full text */}
             <motion.div
-              className="absolute rounded-full h-8 bg-gradient-to-r from-red-600 to-red-700 shadow-[0_0_15px_rgba(220,38,38,0.4)]"
+              className="absolute rounded-full h-8 bg-gradient-to-r from-yellow-500 to-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)]"
               initial={false}
               animate={{
                 x: selectedZone === 'bollywood' ? 0 : selectedZone === 'default' ? 95 : 190,
@@ -166,8 +183,8 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
             />
             
             {[
-              { id: 'bollywood', label: 'Bollywood', path: '/bollywood' },
-              { id: 'default', label: 'Hollywood', path: '/' },
+              { id: 'bollywood', label: 'Bollywood', path: '/' },
+              { id: 'default', label: 'Hollywood', path: '/hollywood' },
               { id: 'animation', label: 'Animation', path: '/animation' },
             ].map((zone) => (
               <motion.button
@@ -179,7 +196,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                   navigate(zone.path);
                 }}
                 className={`relative z-10 px-0 text-[10px] font-black uppercase tracking-wider transition-colors duration-500 w-[95px] ${
-                  (selectedZone === zone.id && !isRecommendationsPage) ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                  (selectedZone === zone.id && !isRecommendationsPage) ? 'text-[#333]' : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
                 {zone.label}
@@ -197,7 +214,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
               aria-haspopup="menu"
               aria-expanded={showCategories}
             >
-              <Sparkles className={`w-3 h-3 transition-transform duration-500 ${showCategories ? 'rotate-180 text-red-500' : ''}`} />
+              <Sparkles className={`w-3 h-3 transition-transform duration-500 ${showCategories ? 'rotate-180 text-yellow-400' : ''}`} />
               Categories
               <ChevronDown className={`w-3 h-3 transition-transform duration-500 ${showCategories ? 'rotate-180' : ''}`} />
             </motion.button>
@@ -209,11 +226,11 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute right-0 top-[calc(100%+12px)] z-50 w-[340px] rounded-2xl border border-white/10 bg-black/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl max-h-[70vh] overflow-y-auto" 
+                  className="absolute right-0 top-[calc(100%+12px)] z-50 w-[340px] rounded-2xl border border-white/10 bg-black/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden" 
                   role="menu"
                 >
                   <div className="mb-5 flex items-center justify-between">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500">{pageLabel}</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-400">{pageLabel}</h3>
                     <motion.button 
                       whileHover={{ x: 3, color: '#fff' }}
                       type="button" 
@@ -248,7 +265,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                 to="/recommendations" 
                 className={`flex items-center justify-center w-9 h-9 rounded-full border transition-all duration-300 ${
                   location.pathname === '/recommendations' 
-                    ? 'bg-red-600 border-red-500 text-white shadow-[0_0_12px_rgba(220,38,38,0.4)]' 
+                    ? 'bg-yellow-500 border-yellow-400 text-black shadow-[0_0_12px_rgba(234,179,8,0.4)]' 
                     : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
                 title="Recommendations"
@@ -334,7 +351,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                 >
                   <button onClick={() => { setProfileOpen(false); navigate('/my-list'); }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all">
-                    <Bookmark className="w-4 h-4 text-red-500" /> My List
+                    <Bookmark className="w-4 h-4 text-yellow-400" /> My List
                   </button>
                   <button onClick={() => { setProfileOpen(false); navigate('/profile'); }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-300 hover:text-white hover:bg-white/5 transition-all border-t border-white/5">
@@ -342,8 +359,8 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                   </button>
                   {isAdmin && (
                     <button onClick={() => { setProfileOpen(false); navigate('/admin'); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-600/10 transition-all border-t border-white/5">
-                      <Shield className="w-4 h-4 text-red-500" /> Admin
+                      className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-yellow-400 hover:text-white hover:bg-yellow-500/10 transition-all border-t border-white/5">
+                      <Shield className="w-4 h-4 text-yellow-400" /> Admin
                     </button>
                   )}
                   <button
@@ -431,7 +448,7 @@ const Navbar = ({ onDiscoveryTrigger, isAdmin }) => {
                 </Link>
 
                 <Link to="/my-list" onClick={() => setMobileOpen(false)} className="py-4 text-xs font-bold uppercase tracking-widest text-gray-300 hover:text-white border-b border-white/5 flex items-center gap-2">
-                  <Bookmark className="w-4 h-4 text-red-500" /> My List
+                  <Bookmark className="w-4 h-4 text-yellow-400" /> My List
                 </Link>
 
                 <button
@@ -612,7 +629,7 @@ const MainLayout = ({ children }) => {
         <main className="flex-1 bg-[#0a0a0a]">{children}</main>
         <footer className="px-4 md:px-12 py-8 border-t border-white/5 bg-black">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-            <Link to="/" className="text-xl font-heading tracking-tighter text-white uppercase font-bold hover:text-red-600 transition-colors duration-300">WatchItFirst</Link>
+            <AnimatedLogo size="sm" className="opacity-75 hover:opacity-100 transition-opacity duration-300" />
             <p className="text-xs text-gray-600">© 2026 WatchItFirst. Powered by TMDB.</p>
             <div className="flex items-center gap-5">
               <Link to="/" className="text-[11px] uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Home</Link>

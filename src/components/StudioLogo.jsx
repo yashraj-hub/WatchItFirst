@@ -34,14 +34,31 @@ const DARK_FRIENDLY_STUDIO_IDS = new Set([
   420,   // Marvel Studios (red logo, works on dark)
   429,   // DC Studios (white logo on transparent)
   7521,  // Netflix
-  11461, // Amazon Studios
 ]);
 
-const StudioLogo = ({ id, logoPath, name, className = 'h-12 md:h-16 w-auto object-contain' }) => {
+const StudioLogo = ({
+  id,
+  logoPath,
+  name,
+  className = 'h-12 md:h-16 w-auto object-contain',
+  forceInvert = false,
+}) => {
   if (!logoPath) return null;
 
   const needsInvert = WHITE_BG_STUDIO_IDS.has(Number(id));
   const isDarkFriendly = DARK_FRIENDLY_STUDIO_IDS.has(Number(id));
+
+  if (forceInvert) {
+    return (
+      <img
+        src={`${TMDB_CONFIG.original}${logoPath}`}
+        alt={name}
+        className={`${className} opacity-70 hover:opacity-100 transition-opacity duration-300`}
+        style={{ filter: 'invert(1) brightness(1.08) contrast(1.08)' }}
+        loading="lazy"
+      />
+    );
+  }
 
   // For white-bg logos: invert + slight opacity
   // For dark-friendly: render as-is
@@ -50,7 +67,7 @@ const StudioLogo = ({ id, logoPath, name, className = 'h-12 md:h-16 w-auto objec
     ? { filter: 'invert(1) brightness(1.1)' }
     : isDarkFriendly
       ? {}
-      : { filter: 'brightness(0) invert(1)' }; // force white for unknown logos
+      : { filter: 'brightness(0) invert(1) contrast(1.1)' }; // force white for unknown logos
 
   return (
     <img
